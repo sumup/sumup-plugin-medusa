@@ -1,0 +1,33 @@
+{
+  "name": "medusa-sumup-example-backend",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Local Medusa backend that loads medusa-plugin-sumup from source.",
+  "scripts": {
+    "build": "medusa build",
+    "seed": "medusa exec ./src/scripts/seed.ts",
+    "start": "medusa start",
+    "dev": "medusa develop"
+  },
+  "dependencies": {
+    "@medusajs/admin-sdk": "2.15.3",
+    "@medusajs/cli": "2.15.3",
+    "@medusajs/framework": "2.15.3",
+    "@medusajs/medusa": "2.15.3",
+    "@sumup/sdk": "^0.1.6"
+  },
+  "devDependencies": {
+    "@swc/core": "^1.7.28",
+    "@types/node": "^20.12.11",
+    "@types/react": "^18.3.2",
+    "@types/react-dom": "^18.2.25",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.2",
+    "vite": "^5.4.14"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

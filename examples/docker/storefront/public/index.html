@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SumUp x Medusa - Demo Storefront</title>
+    <style>
+      :root { color-scheme: light dark; }
+      * { box-sizing: border-box; }
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 2rem 1.25rem 4rem;
+        line-height: 1.5;
+      }
+      h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+      h2 { font-size: 1.15rem; margin: 1.5rem 0 0.5rem; }
+      .muted { opacity: 0.65; font-size: 0.9rem; }
+      .card {
+        border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
+        margin: 1.25rem 0;
+      }
+      .card.success {
+        border-color: #16a34a;
+        background: color-mix(in srgb, #16a34a 8%, transparent);
+      }
+      .card.error {
+        border-color: #dc2626;
+        background: color-mix(in srgb, #dc2626 8%, transparent);
+      }
+      button {
+        font-size: 1rem;
+        padding: 0.7rem 1.4rem;
+        border-radius: 10px;
+        border: 0;
+        background: #1f6feb;
+        color: white;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      button:disabled { opacity: 0.45; cursor: not-allowed; }
+      a.pay-link {
+        display: inline-block;
+        margin-top: 0.75rem;
+        padding: 0.7rem 1.4rem;
+        border-radius: 10px;
+        background: #16a34a;
+        color: white;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 1rem;
+      }
+      pre {
+        background: color-mix(in srgb, currentColor 8%, transparent);
+        padding: 0.85rem;
+        border-radius: 10px;
+        overflow: auto;
+        font-size: 0.78rem;
+        max-height: 280px;
+      }
+      .row { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+      .pill {
+        font-size: 0.75rem;
+        padding: 0.2rem 0.6rem;
+        border-radius: 999px;
+        background: color-mix(in srgb, currentColor 12%, transparent);
+      }
+      .step {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.4rem 0;
+        font-size: 0.9rem;
+        opacity: 0.35;
+        transition: opacity 0.2s;
+      }
+      .step.done { opacity: 1; }
+      .step.active { opacity: 1; font-weight: 600; }
+      .step-icon { font-size: 1.1rem; min-width: 1.4rem; text-align: center; }
+      .product-title { font-weight: 600; font-size: 1.05rem; }
+      .product-price { color: #16a34a; font-weight: 600; margin-top: 0.25rem; }
+      select {
+        font-size: 0.95rem;
+        padding: 0.4rem 0.6rem;
+        border-radius: 8px;
+        border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+        background: transparent;
+        color: inherit;
+        margin-top: 0.4rem;
+      }
+      .mono {
+        font-family: monospace;
+        font-size: 0.85rem;
+        background: color-mix(in srgb, currentColor 10%, transparent);
+        padding: 0.2rem 0.5rem;
+        border-radius: 6px;
+      }
+      #page-checkout, #page-return { display: none; }
+      #page-checkout.visible, #page-return.visible { display: block; }
+      .spinner {
+        display: inline-block;
+        width: 1em; height: 1em;
+        border: 2px solid currentColor;
+        border-right-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        vertical-align: middle;
+        margin-right: 0.4rem;
+        opacity: 0.7;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body>
+
+    <!-- ── CHECKOUT PAGE ─────────────────────────────────────────────── -->
+    <div id="page-checkout">
+      <h1>SumUp x Medusa</h1>
+      <p class="muted">Demo storefront — creates a real Medusa order via the SumUp hosted checkout.</p>
+
+      <div class="card">
+        <div class="row">
+          <span class="pill" id="backend-pill">backend: connecting…</span>
+          <span class="pill" id="product-pill">product: loading…</span>
+        </div>
+      </div>
+
+      <!-- Product card -->
+      <div class="card" id="product-card" style="display:none">
+        <div class="product-title" id="product-title">—</div>
+        <div class="product-price" id="product-price">—</div>
+        <div><select id="variant-select"></select></div>
+      </div>
+
+      <!-- Step progress -->
+      <div class="card" id="steps-card" style="display:none">
+        <h2 style="margin-top:0">Checkout steps</h2>
+        <div class="step" id="step-cart">   <span class="step-icon">🛒</span> Create cart</div>
+        <div class="step" id="step-address"><span class="step-icon">📍</span> Set address &amp; email</div>
+        <div class="step" id="step-ship">   <span class="step-icon">📦</span> Add shipping method</div>
+        <div class="step" id="step-pay">    <span class="step-icon">💳</span> Create SumUp payment session</div>
+        <div class="step" id="step-redir">  <span class="step-icon">↗</span> Redirect to SumUp to pay</div>
+        <div class="step" id="step-order">  <span class="step-icon">✅</span> Order created in Medusa (on return)</div>
+      </div>
+
+      <div class="card">
+        <button id="pay-btn" disabled>Buy now — pay with SumUp</button>
+        <div id="pay-result" style="margin-top:0.75rem"></div>
+      </div>
+
+      <div class="card">
+        <strong>Log</strong>
+        <pre id="log">booting…</pre>
+      </div>
+    </div>
+
+    <!-- ── RETURN PAGE ─────────────────────────────────────────────────── -->
+    <div id="page-return">
+      <h1>SumUp x Medusa</h1>
+      <div class="card" id="return-card">
+        <span class="spinner"></span> Completing your order…
+      </div>
+      <div class="card">
+        <strong>Log</strong>
+        <pre id="return-log">loading…</pre>
+      </div>
+    </div>
+
+    <script>
+    // ─── Shared utilities ────────────────────────────────────────────────────
+
+    function logTo(elId, msg, obj) {
+      const el = document.getElementById(elId)
+      if (!el) return
+      const text = obj !== undefined
+        ? msg + " " + JSON.stringify(obj, null, 2)
+        : msg
+      const prev = el.textContent
+      el.textContent = (prev === "booting…" || prev === "loading…" ? "" : prev + "\n") + text
+    }
+    const log  = (m, o) => logTo("log", m, o)
+    const rlog = (m, o) => logTo("return-log", m, o)
+
+    function setStep(id, state) {
+      const el = document.getElementById(id)
+      if (!el) return
+      el.classList.remove("active", "done")
+      el.classList.add(state)
+    }
+
+    function fmt(amount, currency) {
+      try {
+        return new Intl.NumberFormat("en-DE", {
+          style: "currency", currency: currency.toUpperCase()
+        }).format(Number(amount) / 100)
+      } catch { return amount + " " + currency.toUpperCase() }
+    }
+
+    async function api(cfg, method, path, body) {
+      const res = await fetch(cfg.backendUrl + path, {
+        method,
+        headers: {
+          "content-type": "application/json",
+          "x-publishable-api-key": cfg.publishableKey,
+        },
+        body: body ? JSON.stringify(body) : undefined,
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(`${method} ${path} → ${res.status}: ${JSON.stringify(data)}`)
+      return data
+    }
+
+    async function loadConfig(retries = 120) {
+      for (let i = 0; i < retries; i++) {
+        const res = await fetch("/config.json")
+        if (res.ok) return res.json()
+        if (i === 0) log("Waiting for backend to finish seeding…")
+        else log(`Still waiting… (${i + 1}/${retries})`)
+        await new Promise(r => setTimeout(r, 3000))
+      }
+      throw new Error("Backend did not finish seeding after " + retries + " attempts.")
+    }
+
+    // ─── CHECKOUT PAGE ───────────────────────────────────────────────────────
+
+    let config = null
+    let product = null
+
+    async function boot() {
+      document.getElementById("page-checkout").classList.add("visible")
+      try {
+        config = await loadConfig()
+        document.getElementById("backend-pill").textContent = "backend: " + config.backendUrl
+        log("Config loaded", config)
+
+        const { products } = await api(
+          config, "GET",
+          `/store/products?limit=1&region_id=${config.regionId}&fields=*variants,*variants.prices`
+        )
+        product = products?.[0]
+        if (!product) throw new Error("No products found. Did seeding succeed?")
+        document.getElementById("product-pill").textContent = "product: " + product.title
+
+        document.getElementById("product-title").textContent = product.title
+        const eurPrice = product.variants?.[0]?.prices?.find(p => p.currency_code === "eur")
+        document.getElementById("product-price").textContent = eurPrice
+          ? fmt(eurPrice.amount, "eur") : "€25.00"
+
+        const sel = document.getElementById("variant-select")
+        product.variants.forEach((v, i) => {
+          const o = document.createElement("option")
+          o.value = v.id; o.textContent = v.title
+          if (i === 0) o.selected = true
+          sel.appendChild(o)
+        })
+
+        document.getElementById("product-card").style.display = ""
+        document.getElementById("steps-card").style.display = ""
+        document.getElementById("pay-btn").disabled = false
+      } catch (err) {
+        log("Boot error: " + err.message)
+      }
+    }
+
+    async function startCheckout() {
+      const btn = document.getElementById("pay-btn")
+      btn.disabled = true
+      document.getElementById("pay-result").innerHTML = ""
+
+      try {
+        const variantId = document.getElementById("variant-select").value
+
+        // 1. Create cart
+        setStep("step-cart", "active")
+        log("Creating cart…")
+        const { cart } = await api(config, "POST", "/store/carts", {
+          region_id: config.regionId,
+          items: [{ variant_id: variantId, quantity: 1 }],
+        })
+        log("Cart created", { id: cart.id, total: cart.total })
+        setStep("step-cart", "done")
+
+        // 2. Set address + email
+        setStep("step-address", "active")
+        log("Setting address & email…")
+        const address = {
+          first_name: "Demo", last_name: "Buyer",
+          address_1: "1 Unter den Linden",
+          city: "Berlin", postal_code: "10117",
+          country_code: "de", phone: "+4930123456",
+        }
+        await api(config, "POST", `/store/carts/${cart.id}`, {
+          email: "demo-buyer@example.com",
+          shipping_address: address,
+          billing_address: address,
+        })
+        log("Address set")
+        setStep("step-address", "done")
+
+        // 3. Add shipping method
+        setStep("step-ship", "active")
+        log("Fetching shipping options…")
+        const { shipping_options } = await api(
+          config, "GET", `/store/shipping-options?cart_id=${cart.id}`
+        )
+        if (!shipping_options?.length) throw new Error("No shipping options available for this cart.")
+        log("Shipping options", shipping_options.map(o => o.name))
+        await api(config, "POST", `/store/carts/${cart.id}/shipping-methods`, {
+          option_id: shipping_options[0].id,
+        })
+        log("Shipping method added: " + shipping_options[0].name)
+        setStep("step-ship", "done")
+
+        // 4. Create payment collection + SumUp session
+        setStep("step-pay", "active")
+        log("Creating payment collection…")
+        const { payment_collection } = await api(
+          config, "POST", "/store/payment-collections", { cart_id: cart.id }
+        )
+
+        const { payment_providers } = await api(
+          config, "GET", `/store/payment-providers?region_id=${config.regionId}`
+        )
+        const provider = payment_providers.find(p => p.id.includes("sumup")) || payment_providers[0]
+        log("Using payment provider: " + provider.id)
+
+        log("Creating SumUp payment session…")
+        const sessionRes = await api(
+          config, "POST",
+          `/store/payment-collections/${payment_collection.id}/payment-sessions`,
+          { provider_id: provider.id }
+        )
+        const collection = sessionRes.payment_collection || sessionRes
+        const session = (collection.payment_sessions || []).find(s => s.provider_id.includes("sumup"))
+        if (!session) throw new Error("SumUp payment session not found in response.")
+        log("Payment session created", { checkout_id: session.data?.checkout_id })
+        setStep("step-pay", "done")
+
+        // 5. Save state to sessionStorage, then redirect to SumUp.
+        //    cart/complete is called on the /return page AFTER the user pays —
+        //    because authorizePayment checks the live SumUp checkout status and
+        //    only returns CAPTURED once SumUp marks the checkout as PAID.
+        const hostedUrl = session.data?.hosted_checkout_url
+        const checkoutId = session.data?.checkout_id
+
+        sessionStorage.setItem("sumup_cart_id", cart.id)
+        sessionStorage.setItem("sumup_checkout_id", checkoutId || "")
+        sessionStorage.setItem("sumup_backend_url", config.backendUrl)
+        sessionStorage.setItem("sumup_publishable_key", config.publishableKey)
+
+        const result = document.getElementById("pay-result")
+
+        if (hostedUrl) {
+          setStep("step-redir", "active")
+          log("Redirecting to SumUp hosted checkout…")
+          result.innerHTML =
+            `<p>Redirecting to SumUp… cart <span class="mono">${cart.id}</span></p>` +
+            `<p class="muted">Not redirected? <a href="${hostedUrl}">Click here →</a></p>`
+          // Short pause so the user can see the step progress, then redirect
+          setTimeout(() => { window.location.href = hostedUrl }, 1200)
+        } else {
+          // Widget mode — no redirect, show instructions
+          result.innerHTML =
+            `<div class="card">` +
+            `<strong>Widget mode</strong><br>` +
+            `Mount the SumUp card widget with checkout id <span class="mono">${checkoutId}</span>.<br>` +
+            `After payment completes, call <code>POST /store/carts/${cart.id}/complete</code>.` +
+            `</div>`
+          btn.disabled = false
+        }
+
+      } catch (err) {
+        log("Error: " + err.message)
+        document.getElementById("pay-result").innerHTML =
+          `<p style="color:#dc2626">Error: ${err.message}</p>`
+        btn.disabled = false
+        ;["step-cart","step-address","step-ship","step-pay","step-redir","step-order"]
+          .forEach(id => document.getElementById(id)?.classList.remove("active","done"))
+      }
+    }
+
+    // ─── RETURN PAGE ──────────────────────────────────────────────────────────
+    //
+    // SumUp redirects to /return after the user completes (or cancels) payment.
+    // At this point the SumUp checkout is PAID, so authorizePayment returns
+    // CAPTURED and Medusa will accept cart/complete.
+
+    async function handleReturn() {
+      document.getElementById("page-return").classList.add("visible")
+      const card = document.getElementById("return-card")
+
+      const params      = new URLSearchParams(window.location.search)
+      const checkoutId  = params.get("checkout") || sessionStorage.getItem("sumup_checkout_id") || ""
+      const cartId      = sessionStorage.getItem("sumup_cart_id") || ""
+      const backendUrl  = sessionStorage.getItem("sumup_backend_url") || ""
+      const pubKey      = sessionStorage.getItem("sumup_publishable_key") || ""
+
+      rlog("Returned from SumUp", { checkoutId, cartId })
+
+      // Clean up session storage
+      sessionStorage.removeItem("sumup_cart_id")
+      sessionStorage.removeItem("sumup_checkout_id")
+      sessionStorage.removeItem("sumup_backend_url")
+      sessionStorage.removeItem("sumup_publishable_key")
+
+      if (!cartId || !backendUrl || !pubKey) {
+        card.className = "card"
+        card.innerHTML =
+          `<h2 style="margin-top:0">Returned from SumUp</h2>` +
+          `<p class="muted">No pending cart found in this browser session. ` +
+          `The order may already exist — check the ` +
+          `<a href="http://localhost:9000/app/orders" target="_blank">Medusa Admin →</a></p>` +
+          `<p><a href="/">← Back to storefront</a></p>`
+        rlog("No cart_id in sessionStorage — cannot complete cart.")
+        return
+      }
+
+      const cfg = { backendUrl, publishableKey: pubKey }
+
+      // Give SumUp a brief moment to process the payment on their end before
+      // we call authorize, which fetches the live checkout status from their API.
+      rlog("Waiting briefly for SumUp to finalize payment status…")
+      await new Promise(r => setTimeout(r, 1500))
+
+      // Complete the cart — this calls authorizePayment internally.
+      // Now that the user has paid, SumUp returns status=PAID → CAPTURED.
+      rlog("Completing cart in Medusa…")
+      let retries = 5
+      let order = null
+      let lastErr = null
+
+      while (retries-- > 0 && !order) {
+        try {
+          const res = await api(cfg, "POST", `/store/carts/${cartId}/complete`)
+          rlog("Cart complete response", { type: res.type, order_id: res.order?.id })
+
+          if (res.type === "order") {
+            order = res.order
+          } else if (res.type === "cart") {
+            // Payment not yet authorized — payment session still pending.
+            // This can happen if SumUp webhook hasn't updated status yet.
+            lastErr = new Error("Payment session not yet authorized (type=cart). Retrying…")
+            rlog(lastErr.message)
+            await new Promise(r => setTimeout(r, 2000))
+          } else {
+            throw new Error("Unexpected response type: " + res.type + " — " + JSON.stringify(res))
+          }
+        } catch (err) {
+          lastErr = err
+          rlog("cart/complete error: " + err.message)
+          if (retries > 0) {
+            rlog(`Retrying in 2s… (${retries} attempts left)`)
+            await new Promise(r => setTimeout(r, 2000))
+          }
+        }
+      }
+
+      if (order) {
+        card.className = "card success"
+        card.innerHTML = `
+          <h2 style="margin-top:0; color:#16a34a">Order placed!</h2>
+          <p>Your payment was successful and the order is now in Medusa.</p>
+          <table style="border-collapse:collapse; width:100%; font-size:0.9rem; margin-top:0.5rem">
+            <tr>
+              <td style="padding:0.3rem 1rem 0.3rem 0; opacity:0.65; white-space:nowrap">Order ID</td>
+              <td><span class="mono">${order.id}</span></td>
+            </tr>
+            ${order.display_id ? `<tr>
+              <td style="padding:0.3rem 1rem 0.3rem 0; opacity:0.65">Order #</td>
+              <td>#${order.display_id}</td>
+            </tr>` : ""}
+            <tr>
+              <td style="padding:0.3rem 1rem 0.3rem 0; opacity:0.65">Total</td>
+              <td>${fmt(order.total, order.currency_code || "eur")}</td>
+            </tr>
+            <tr>
+              <td style="padding:0.3rem 1rem 0.3rem 0; opacity:0.65">Status</td>
+              <td>${order.status || "pending"}</td>
+            </tr>
+            ${checkoutId ? `<tr>
+              <td style="padding:0.3rem 1rem 0.3rem 0; opacity:0.65">SumUp checkout</td>
+              <td><span class="mono">${checkoutId}</span></td>
+            </tr>` : ""}
+          </table>
+          <p style="margin-top:1rem">
+            <a href="http://localhost:9000/app/orders" target="_blank" rel="noopener"
+               style="font-weight:600">View in Medusa Admin →</a>
+          </p>
+          <p><a href="/" style="font-size:0.9rem">← Place another order</a></p>
+        `
+        rlog("Order created", { id: order.id, status: order.status, total: order.total })
+      } else {
+        card.className = "card error"
+        card.innerHTML = `
+          <h2 style="margin-top:0; color:#dc2626">Could not complete order</h2>
+          <p>The cart could not be completed after ${5} attempts.</p>
+          <p class="muted">Last error: ${lastErr?.message || "unknown"}</p>
+          <p class="muted">SumUp checkout id: <span class="mono">${checkoutId}</span><br>
+          Cart id: <span class="mono">${cartId}</span></p>
+          <p class="muted">The payment may still have been captured by SumUp. Check the
+          <a href="http://localhost:9000/app/orders" target="_blank">Medusa Admin →</a>
+          and the <a href="http://localhost:9000/app/orders" target="_blank">SumUp dashboard</a>.</p>
+          <p><a href="/">← Try again</a></p>
+        `
+      }
+    }
+
+    // ─── Router ───────────────────────────────────────────────────────────────
+
+    const isReturn = window.location.pathname === "/return" ||
+                     new URLSearchParams(window.location.search).has("checkout")
+
+    if (isReturn) {
+      handleReturn()
+    } else {
+      document.getElementById("pay-btn").addEventListener("click", startCheckout)
+      boot()
+    }
+    </script>
+  </body>
+</html>

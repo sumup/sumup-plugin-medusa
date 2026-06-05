@@ -1,0 +1,12 @@
+node_modules
+**/node_modules
+.medusa
+**/.medusa
+dist
+coverage
+.git
+.yalc
+yalc.lock
+*.log
+.env
+examples/docker/.env

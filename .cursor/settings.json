@@ -1,0 +1,9 @@
+{
+  "plugins": {
+    "sumup/sumup": {
+      "enabled": true,
+      "gitUrl": "https://github.com/sumup/sumup-skills",
+      "gitRef": "633761d3c635821ae2c4eb67335a797993dcb095"
+    }
+  }
+}

@@ -1,0 +1,62 @@
+name: medusa-sumup-example
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-medusa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-medusa}
+      POSTGRES_DB: ${POSTGRES_DB:-medusa}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-medusa} -d ${POSTGRES_DB:-medusa}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  medusa:
+    build:
+      # Build context is the plugin repo root so the Dockerfile can compile
+      # this plugin from source and link it via a local `file:` dependency.
+      context: ../..
+      dockerfile: examples/docker/medusa/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgres://${POSTGRES_USER:-medusa}:${POSTGRES_PASSWORD:-medusa}@postgres:5432/${POSTGRES_DB:-medusa}?sslmode=disable
+      SHARED_CONFIG_PATH: /shared/config.json
+    ports:
+      - "9000:9000"
+    volumes:
+      - shared:/shared
+    healthcheck:
+      # The Medusa HTTP server is ready once it starts accepting connections.
+      # Migrations and seeding happen before `medusa develop` starts, so by the
+      # time this passes the seed script has already run (or logged its failure).
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  storefront:
+    build:
+      context: ./storefront
+    depends_on:
+      - medusa
+    environment:
+      PORT: 8080
+      SHARED_CONFIG_PATH: /shared/config.json
+    ports:
+      - "8080:8080"
+    volumes:
+      - shared:/shared
+
+volumes:
+  pgdata:
+  shared:

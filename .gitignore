@@ -1,0 +1,8 @@
+node_modules
+.medusa
+dist
+coverage
+.env
+.yalc
+yalc.lock
+*.log
