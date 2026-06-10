@@ -30,11 +30,6 @@
   "exports": {
     "./package.json": "./package.json",
     "./providers/*": "./.medusa/server/src/providers/*/index.js",
-    "./admin": {
-      "import": "./.medusa/server/src/admin/index.mjs",
-      "require": "./.medusa/server/src/admin/index.js",
-      "default": "./.medusa/server/src/admin/index.js"
-    },
     "./*": "./.medusa/server/src/*.js"
   },
   "keywords": [
@@ -49,39 +44,28 @@
   "scripts": {
     "build": "medusa plugin:build",
     "dev": "medusa plugin:develop",
-    "format": "biome format --write src package.json tsconfig.json vitest.config.ts README.md biome.json examples/docker/medusa/package.json examples/docker/medusa/medusa-config.ts examples/docker/README.md",
-    "format:check": "biome format src package.json tsconfig.json vitest.config.ts README.md biome.json examples/docker/medusa/package.json examples/docker/medusa/medusa-config.ts examples/docker/README.md",
-    "lint": "biome lint src package.json tsconfig.json vitest.config.ts README.md biome.json examples/docker/medusa/package.json examples/docker/medusa/medusa-config.ts examples/docker/README.md",
-    "lint:fix": "biome lint --write src package.json tsconfig.json vitest.config.ts README.md biome.json examples/docker/medusa/package.json examples/docker/medusa/medusa-config.ts examples/docker/README.md",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "medusa plugin:build"
   },
-  "dependencies": {
-    "@sumup/sdk": "^0.1.6"
-  },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",
-    "@medusajs/admin-sdk": "^2.15.5",
     "@medusajs/cli": "^2.15.5",
     "@medusajs/framework": "^2.15.5",
-    "@medusajs/icons": "^2.15.5",
     "@medusajs/medusa": "^2.15.5",
-    "@medusajs/test-utils": "^2.15.5",
-    "@medusajs/ui": "^4.1.15",
-    "@swc/core": "^1.15.41",
     "@types/node": "^25.9.2",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3",
     "vitest": "^4.1.8"
   },
   "peerDependencies": {
-    "@medusajs/admin-sdk": "^2.15.5",
-    "@medusajs/cli": "^2.15.5",
-    "@medusajs/framework": "^2.15.5",
-    "@medusajs/icons": "^2.15.5",
-    "@medusajs/medusa": "^2.15.5",
-    "@medusajs/test-utils": "^2.15.5",
-    "@medusajs/ui": "^4.1.15"
+    "@medusajs/framework": "^2.15.5"
+  },
+  "dependencies": {
+    "@sumup/sdk": "^0.1.6"
   }
 }

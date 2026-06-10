@@ -1,6 +1,6 @@
 import fs from "node:fs"
 import path from "node:path"
-import { ExecArgs } from "@medusajs/framework/types"
+import type { ExecArgs } from "@medusajs/framework/types"
 import {
   ContainerRegistrationKeys,
   Modules,
@@ -89,7 +89,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
 
   logger.info("Seeding stock location & fulfillment data...")
   const { result: stockLocationResult } = await createStockLocationsWorkflow(
-    container
+    container,
   ).run({
     input: {
       locations: [
@@ -247,7 +247,9 @@ export default async function seedDemoData({ container }: ExecArgs) {
     fs.writeFileSync(sharedPath, JSON.stringify(storefrontConfig, null, 2))
     logger.info(`Wrote storefront config to ${sharedPath}`)
   } catch (error) {
-    logger.warn(`Could not write storefront config: ${(error as Error).message}`)
+    logger.warn(
+      `Could not write storefront config: ${(error as Error).message}`,
+    )
   }
 
   logger.info("Finished seeding demo data.")

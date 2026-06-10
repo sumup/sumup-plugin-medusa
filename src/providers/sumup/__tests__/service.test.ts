@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest"
 import { PaymentActions, PaymentSessionStatus } from "@medusajs/framework/utils"
 import type {
   Checkout,
   CheckoutCreateRequest,
   CheckoutSuccess,
 } from "@sumup/sdk"
+import { describe, expect, it } from "vitest"
 
 import SumUpPaymentProviderService from "../service"
 import type { SumUpClient } from "../types"

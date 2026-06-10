@@ -15,5 +15,11 @@
     "types": ["node"]
   },
   "include": ["src", ".medusa/types/*", "medusa-config.ts"],
-  "exclude": ["node_modules", ".cache", ".medusa/server", "**/*.spec.ts", "dist"]
+  "exclude": [
+    "node_modules",
+    ".cache",
+    ".medusa/server",
+    "**/*.spec.ts",
+    "dist"
+  ]
 }

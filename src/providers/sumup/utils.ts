@@ -1,11 +1,11 @@
+import type { BigNumberInput } from "@medusajs/framework/types"
+import { PaymentActions, PaymentSessionStatus } from "@medusajs/framework/utils"
 import type {
   Checkout,
   CheckoutCreateRequest,
   CheckoutSuccess,
   Currency,
 } from "@sumup/sdk"
-import { PaymentActions, PaymentSessionStatus } from "@medusajs/framework/utils"
-import type { BigNumberInput } from "@medusajs/framework/types"
 
 import type {
   SumUpCheckoutMode,

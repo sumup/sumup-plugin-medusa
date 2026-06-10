@@ -147,7 +147,7 @@
       </div>
 
       <div class="card">
-        <button id="pay-btn" disabled>Buy now — pay with SumUp</button>
+        <button type="button" id="pay-btn" disabled>Buy now — pay with SumUp</button>
         <div id="pay-result" style="margin-top:0.75rem"></div>
       </div>
 
@@ -176,10 +176,10 @@
       const el = document.getElementById(elId)
       if (!el) return
       const text = obj !== undefined
-        ? msg + " " + JSON.stringify(obj, null, 2)
+        ? `${msg} ${JSON.stringify(obj, null, 2)}`
         : msg
       const prev = el.textContent
-      el.textContent = (prev === "booting…" || prev === "loading…" ? "" : prev + "\n") + text
+      el.textContent = (prev === "booting…" || prev === "loading…" ? "" : `${prev}\n`) + text
     }
     const log  = (m, o) => logTo("log", m, o)
     const rlog = (m, o) => logTo("return-log", m, o)
@@ -196,7 +196,7 @@
         return new Intl.NumberFormat("en-DE", {
           style: "currency", currency: currency.toUpperCase()
         }).format(Number(amount) / 100)
-      } catch { return amount + " " + currency.toUpperCase() }
+      } catch { return `${amount} ${currency.toUpperCase()}` }
     }
 
     async function api(cfg, method, path, body) {
@@ -221,7 +221,7 @@
         else log(`Still waiting… (${i + 1}/${retries})`)
         await new Promise(r => setTimeout(r, 3000))
       }
-      throw new Error("Backend did not finish seeding after " + retries + " attempts.")
+      throw new Error(`Backend did not finish seeding after ${retries} attempts.`)
     }
 
     // ─── CHECKOUT PAGE ───────────────────────────────────────────────────────
@@ -233,7 +233,7 @@
       document.getElementById("page-checkout").classList.add("visible")
       try {
         config = await loadConfig()
-        document.getElementById("backend-pill").textContent = "backend: " + config.backendUrl
+        document.getElementById("backend-pill").textContent = `backend: ${config.backendUrl}`
         log("Config loaded", config)
 
         const { products } = await api(
@@ -242,7 +242,7 @@
         )
         product = products?.[0]
         if (!product) throw new Error("No products found. Did seeding succeed?")
-        document.getElementById("product-pill").textContent = "product: " + product.title
+        document.getElementById("product-pill").textContent = `product: ${product.title}`
 
         document.getElementById("product-title").textContent = product.title
         const eurPrice = product.variants?.[0]?.prices?.find(p => p.currency_code === "eur")
@@ -261,7 +261,7 @@
         document.getElementById("steps-card").style.display = ""
         document.getElementById("pay-btn").disabled = false
       } catch (err) {
-        log("Boot error: " + err.message)
+        log(`Boot error: ${err.message}`)
       }
     }
 
@@ -311,7 +311,7 @@
         await api(config, "POST", `/store/carts/${cart.id}/shipping-methods`, {
           option_id: shipping_options[0].id,
         })
-        log("Shipping method added: " + shipping_options[0].name)
+        log(`Shipping method added: ${shipping_options[0].name}`)
         setStep("step-ship", "done")
 
         // 4. Create payment collection + SumUp session
@@ -325,7 +325,7 @@
           config, "GET", `/store/payment-providers?region_id=${config.regionId}`
         )
         const provider = payment_providers.find(p => p.id.includes("sumup")) || payment_providers[0]
-        log("Using payment provider: " + provider.id)
+        log(`Using payment provider: ${provider.id}`)
 
         log("Creating SumUp payment session…")
         const sessionRes = await api(
@@ -373,12 +373,14 @@
         }
 
       } catch (err) {
-        log("Error: " + err.message)
+        log(`Error: ${err.message}`)
         document.getElementById("pay-result").innerHTML =
           `<p style="color:#dc2626">Error: ${err.message}</p>`
         btn.disabled = false
         ;["step-cart","step-address","step-ship","step-pay","step-redir","step-order"]
-          .forEach(id => document.getElementById(id)?.classList.remove("active","done"))
+          .forEach(id => {
+            document.getElementById(id)?.classList.remove("active", "done")
+          })
       }
     }
 
@@ -446,11 +448,11 @@
             rlog(lastErr.message)
             await new Promise(r => setTimeout(r, 2000))
           } else {
-            throw new Error("Unexpected response type: " + res.type + " — " + JSON.stringify(res))
+            throw new Error(`Unexpected response type: ${res.type} — ${JSON.stringify(res)}`)
           }
         } catch (err) {
           lastErr = err
-          rlog("cart/complete error: " + err.message)
+          rlog(`cart/complete error: ${err.message}`)
           if (retries > 0) {
             rlog(`Retrying in 2s… (${retries} attempts left)`)
             await new Promise(r => setTimeout(r, 2000))

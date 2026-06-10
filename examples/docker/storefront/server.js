@@ -51,7 +51,8 @@ const server = http.createServer((req, res) => {
       return
     }
     res.writeHead(200, {
-      "content-type": MIME[path.extname(filePath)] || "application/octet-stream",
+      "content-type":
+        MIME[path.extname(filePath)] || "application/octet-stream",
     })
     res.end(data)
   })

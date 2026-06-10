@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest"
 import { PaymentActions, PaymentSessionStatus } from "@medusajs/framework/utils"
+import { describe, expect, it } from "vitest"
 
 import {
   createCheckoutPayload,
