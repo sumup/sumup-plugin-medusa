@@ -11,7 +11,7 @@
     "url": "git+https://github.com/sumup/medusa-plugin-sumup.git"
   },
   "author": "SumUp <support@sumup.com> (https://sumup.com/)",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "type": "commonjs",
   "main": "./.medusa/server/src/index.js",
   "files": [
