@@ -1,19 +1,19 @@
 {
   "name": "@sumup/medusa-plugin",
   "version": "0.1.0",
-  "description": "SumUp online payments provider for Medusa v2.",
-  "homepage": "https://github.com/sumup/medusa-plugin-sumup",
-  "bugs": {
-    "url": "https://github.com/sumup/medusa-plugin-sumup/issues"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/sumup/medusa-plugin-sumup.git"
-  },
+  "description": "SumUp payment provider for Medusa v2.",
   "author": "SumUp <support@sumup.com> (https://sumup.com/)",
   "license": "Apache-2.0",
   "type": "commonjs",
   "main": "./.medusa/server/src/index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sumup/medusa-plugin-sumup.git"
+  },
+  "homepage": "https://github.com/sumup/medusa-plugin-sumup#readme",
+  "bugs": {
+    "url": "https://github.com/sumup/medusa-plugin-sumup/issues"
+  },
   "files": [
     ".medusa/server",
     "README.md",
@@ -52,6 +52,9 @@
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "medusa plugin:build"
   },
+  "dependencies": {
+    "@sumup/sdk": "^0.1.6"
+  },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",
     "@medusajs/cli": "^2.15.5",
@@ -64,8 +67,5 @@
   },
   "peerDependencies": {
     "@medusajs/framework": "^2.15.5"
-  },
-  "dependencies": {
-    "@sumup/sdk": "^0.1.6"
   }
 }
