@@ -140,3 +140,21 @@ For Medusa-level plugin tests, Medusa's testing framework is the recommended pat
 - Use `moduleIntegrationTestRunner` when you want faster isolated tests around a single Medusa module instead of a full app boot.
 
 That means the next testing step for this plugin should be an integration suite that starts a temporary Medusa app, registers the SumUp provider, and verifies session creation, webhook handling, and refund behavior against mocked SumUp API responses.
+
+## Publishing
+
+Medusa's recommended publish flow is:
+
+```bash
+npm run build
+npm publish
+```
+
+This repository is set up to automate that flow in GitHub Actions:
+
+- `.github/workflows/release-pr.yaml` runs Release Please on `main` to prepare version bumps, changelog updates, and GitHub releases.
+- `.github/workflows/release.yaml` publishes the package to npm when a GitHub release is published.
+
+Repository secret required:
+
+- `NPM_TOKEN`: npm automation token with permission to publish `@sumup/medusa-plugin`.

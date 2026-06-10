@@ -2,14 +2,31 @@
   "name": "@sumup/medusa-plugin",
   "version": "0.1.0",
   "description": "SumUp online payments provider for Medusa v2.",
-  "author": "",
+  "homepage": "https://github.com/sumup/medusa-plugin-sumup",
+  "bugs": {
+    "url": "https://github.com/sumup/medusa-plugin-sumup/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sumup/medusa-plugin-sumup.git"
+  },
+  "author": "SumUp <support@sumup.com> (https://sumup.com/)",
   "license": "MIT",
   "type": "commonjs",
   "main": "./.medusa/server/src/index.js",
   "files": [
     ".medusa/server",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
   ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "provenance": true,
+    "access": "public"
+  },
   "exports": {
     "./package.json": "./package.json",
     "./providers/*": "./.medusa/server/src/providers/*/index.js",
