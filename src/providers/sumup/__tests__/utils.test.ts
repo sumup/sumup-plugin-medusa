@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest"
-import {
-  PaymentActions,
-  PaymentSessionStatus,
-} from "@medusajs/framework/utils"
+import { PaymentActions, PaymentSessionStatus } from "@medusajs/framework/utils"
 
 import {
   createCheckoutPayload,
@@ -59,44 +56,42 @@ describe("SumUp provider utilities", () => {
 
   it("normalizes Medusa BigNumber-like amounts", () => {
     expect(toMajorUnitNumber({ numeric: 42 } as never)).toBe(42)
-    expect(toMajorUnitNumber({ raw: { value: "13.37" } } as never)).toBe(
-      13.37
-    )
+    expect(toMajorUnitNumber({ raw: { value: "13.37" } } as never)).toBe(13.37)
   })
 
   it("maps SumUp checkout statuses to Medusa payment session statuses", () => {
     expect(mapCheckoutToSessionStatus({ status: "PENDING" })).toBe(
-      PaymentSessionStatus.PENDING
+      PaymentSessionStatus.PENDING,
     )
     expect(mapCheckoutToSessionStatus({ status: "FAILED" })).toBe(
-      PaymentSessionStatus.ERROR
+      PaymentSessionStatus.ERROR,
     )
     expect(mapCheckoutToSessionStatus({ status: "EXPIRED" })).toBe(
-      PaymentSessionStatus.CANCELED
+      PaymentSessionStatus.CANCELED,
     )
     expect(mapCheckoutToSessionStatus({ status: "PAID" })).toBe(
-      PaymentSessionStatus.CAPTURED
+      PaymentSessionStatus.CAPTURED,
     )
     expect(
       mapCheckoutToSessionStatus({
         status: "PENDING",
         transactions: [{ status: "SUCCESSFUL", id: "txn_1" }],
-      })
+      }),
     ).toBe(PaymentSessionStatus.CAPTURED)
   })
 
   it("maps SumUp checkout statuses to Medusa webhook actions", () => {
     expect(mapCheckoutToWebhookAction({ status: "PENDING" })).toBe(
-      PaymentActions.PENDING
+      PaymentActions.PENDING,
     )
     expect(mapCheckoutToWebhookAction({ status: "FAILED" })).toBe(
-      PaymentActions.FAILED
+      PaymentActions.FAILED,
     )
     expect(mapCheckoutToWebhookAction({ status: "EXPIRED" })).toBe(
-      PaymentActions.CANCELED
+      PaymentActions.CANCELED,
     )
     expect(mapCheckoutToWebhookAction({ status: "PAID" })).toBe(
-      PaymentActions.SUCCESSFUL
+      PaymentActions.SUCCESSFUL,
     )
   })
 })

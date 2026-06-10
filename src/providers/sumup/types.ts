@@ -21,7 +21,7 @@ export type SumUpProviderOptions = {
 export type SumUpClient = {
   createCheckout(
     payload: CheckoutCreateRequest,
-    idempotencyKey?: string
+    idempotencyKey?: string,
   ): Promise<Checkout>
   retrieveCheckout(checkoutId: string): Promise<CheckoutSuccess>
   deactivateCheckout(checkoutId: string): Promise<Checkout>

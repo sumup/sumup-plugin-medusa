@@ -57,14 +57,14 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
     if (!options?.apiKey) {
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
-        "Required option `apiKey` is missing in SumUp payment provider options."
+        "Required option `apiKey` is missing in SumUp payment provider options.",
       )
     }
 
     if (!options?.merchantCode) {
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
-        "Required option `merchantCode` is missing in SumUp payment provider options."
+        "Required option `merchantCode` is missing in SumUp payment provider options.",
       )
     }
   }
@@ -80,7 +80,7 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
   }
 
   async initiatePayment(
-    input: InitiatePaymentInput
+    input: InitiatePaymentInput,
   ): Promise<InitiatePaymentOutput> {
     const mode = resolveCheckoutMode(this.options_, input.data)
     const checkout = await this.client_.createCheckout(
@@ -93,7 +93,7 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
         },
         options: this.options_,
       }),
-      input.context?.idempotency_key
+      input.context?.idempotency_key,
     )
 
     const data = toStoredPaymentData({ checkout, mode })
@@ -106,13 +106,13 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
   }
 
   async authorizePayment(
-    input: AuthorizePaymentInput
+    input: AuthorizePaymentInput,
   ): Promise<AuthorizePaymentOutput> {
     return await this.getPaymentStatus(input)
   }
 
   async getPaymentStatus(
-    input: GetPaymentStatusInput
+    input: GetPaymentStatusInput,
   ): Promise<GetPaymentStatusOutput> {
     const checkout = await this.retrieveProviderCheckout(input.data)
 
@@ -120,13 +120,13 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
       status: mapCheckoutToSessionStatus(checkout),
       data: mergeCheckoutIntoPaymentData(
         input.data,
-        checkout
+        checkout,
       ) as unknown as Record<string, unknown>,
     }
   }
 
   async capturePayment(
-    input: CapturePaymentInput
+    input: CapturePaymentInput,
   ): Promise<CapturePaymentOutput> {
     const checkout = await this.retrieveProviderCheckout(input.data)
     const status = mapCheckoutToSessionStatus(checkout)
@@ -134,14 +134,14 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
     if (status !== PaymentSessionStatus.CAPTURED) {
       throw new MedusaError(
         MedusaError.Types.UNEXPECTED_STATE,
-        "Cannot capture SumUp payment before the checkout is paid."
+        "Cannot capture SumUp payment before the checkout is paid.",
       )
     }
 
     return {
       data: mergeCheckoutIntoPaymentData(
         input.data,
-        checkout
+        checkout,
       ) as unknown as Record<string, unknown>,
     }
   }
@@ -157,20 +157,23 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
     if (!transactionId) {
       const checkout = await this.retrieveProviderCheckout(data)
       transactionId = getTransactionId(checkout)
-      nextData = mergeCheckoutIntoPaymentData(data, checkout) as unknown as Record<
-        string,
-        unknown
-      >
+      nextData = mergeCheckoutIntoPaymentData(
+        data,
+        checkout,
+      ) as unknown as Record<string, unknown>
     }
 
     if (!transactionId) {
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
-        "Cannot refund SumUp payment without a successful transaction id."
+        "Cannot refund SumUp payment without a successful transaction id.",
       )
     }
 
-    await this.client_.refundTransaction(transactionId, toMajorUnitNumber(amount))
+    await this.client_.refundTransaction(
+      transactionId,
+      toMajorUnitNumber(amount),
+    )
 
     return {
       data: nextData,
@@ -191,10 +194,10 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
 
     if (status === PaymentSessionStatus.CAPTURED) {
       return {
-        data: mergeCheckoutIntoPaymentData(
-          data,
-          checkout
-        ) as unknown as Record<string, unknown>,
+        data: mergeCheckoutIntoPaymentData(data, checkout) as unknown as Record<
+          string,
+          unknown
+        >,
       }
     }
 
@@ -203,7 +206,7 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
       return {
         data: mergeCheckoutIntoPaymentData(
           data,
-          deactivated
+          deactivated,
         ) as unknown as Record<string, unknown>,
       }
     } catch (error) {
@@ -211,9 +214,7 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
     }
   }
 
-  async deletePayment(
-    input: DeletePaymentInput
-  ): Promise<DeletePaymentOutput> {
+  async deletePayment(input: DeletePaymentInput): Promise<DeletePaymentOutput> {
     return await this.cancelPayment(input)
   }
 
@@ -223,16 +224,14 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
     const checkout = await this.retrieveProviderCheckout(data)
 
     return {
-      data: mergeCheckoutIntoPaymentData(
-        data,
-        checkout
-      ) as unknown as Record<string, unknown>,
+      data: mergeCheckoutIntoPaymentData(data, checkout) as unknown as Record<
+        string,
+        unknown
+      >,
     }
   }
 
-  async updatePayment(
-    input: UpdatePaymentInput
-  ): Promise<UpdatePaymentOutput> {
+  async updatePayment(input: UpdatePaymentInput): Promise<UpdatePaymentOutput> {
     const checkout = await this.retrieveProviderCheckout(input.data)
     const status = mapCheckoutToSessionStatus(checkout)
     const currentAmount = toMajorUnitNumber(input.amount)
@@ -246,7 +245,7 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
         status,
         data: mergeCheckoutIntoPaymentData(
           input.data,
-          checkout
+          checkout,
         ) as unknown as Record<string, unknown>,
       }
     }
@@ -254,11 +253,18 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
     if (status === PaymentSessionStatus.CAPTURED) {
       throw new MedusaError(
         MedusaError.Types.UNEXPECTED_STATE,
-        "Cannot update a SumUp checkout after it has been paid."
+        "Cannot update a SumUp checkout after it has been paid.",
       )
     }
 
-    await this.client_.deactivateCheckout(checkout.id!)
+    if (!checkout.id) {
+      throw new MedusaError(
+        MedusaError.Types.UNEXPECTED_STATE,
+        "Cannot replace a SumUp checkout without an existing checkout id.",
+      )
+    }
+
+    await this.client_.deactivateCheckout(checkout.id)
 
     const mode = resolveCheckoutMode(this.options_, input.data)
     const replacement = await this.client_.createCheckout(
@@ -268,7 +274,7 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
         data: input.data,
         options: this.options_,
       }),
-      input.context?.idempotency_key
+      input.context?.idempotency_key,
     )
 
     return {
@@ -281,7 +287,7 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
   }
 
   async getWebhookActionAndData(
-    payload: ProviderWebhookPayload["payload"]
+    payload: ProviderWebhookPayload["payload"],
   ): Promise<WebhookActionResult> {
     const data = payload.data as SumUpWebhookBody
 
@@ -311,7 +317,7 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
     if (!checkoutId) {
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
-        "Missing SumUp checkout id in payment data."
+        "Missing SumUp checkout id in payment data.",
       )
     }
 
@@ -341,7 +347,7 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
 
     return new MedusaError(
       MedusaError.Types.UNEXPECTED_STATE,
-      `${message} ${detail}`.trim()
+      `${message} ${detail}`.trim(),
     )
   }
 }

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest"
 import { PaymentActions, PaymentSessionStatus } from "@medusajs/framework/utils"
-import type { Checkout, CheckoutCreateRequest, CheckoutSuccess } from "@sumup/sdk"
+import type {
+  Checkout,
+  CheckoutCreateRequest,
+  CheckoutSuccess,
+} from "@sumup/sdk"
 
 import SumUpPaymentProviderService from "../service"
 import type { SumUpClient } from "../types"
@@ -60,7 +64,7 @@ class FakeSumUpClient implements SumUpClient {
 
   async refundTransaction(
     transactionId: string,
-    amount?: number
+    amount?: number,
   ): Promise<void> {
     this.refunds.push({ transactionId, amount })
   }
@@ -73,7 +77,7 @@ const createProvider = (client = new FakeSumUpClient()) => {
       apiKey: "sk",
       merchantCode: "MC123",
       client,
-    }
+    },
   )
 
   return { provider, client }
@@ -98,7 +102,7 @@ describe("SumUpPaymentProviderService", () => {
     expect(result.status).toBe(PaymentSessionStatus.PENDING)
     expect(result.data?.checkout_id).toBe("checkout_1")
     expect(result.data?.hosted_checkout_url).toBe(
-      "https://checkout.sumup.com/pay/test"
+      "https://checkout.sumup.com/pay/test",
     )
     expect(client.createdPayloads[0]).toMatchObject({
       checkout_reference: "payses_hosted",
@@ -178,9 +182,7 @@ describe("SumUpPaymentProviderService", () => {
       },
     })
 
-    expect(client.refunds).toEqual([
-      { transactionId: "txn_lookup", amount: 3 },
-    ])
+    expect(client.refunds).toEqual([{ transactionId: "txn_lookup", amount: 3 }])
   })
 
   it("maps SumUp checkout webhooks after verifying through the API", async () => {
@@ -252,7 +254,7 @@ describe("SumUpPaymentProviderService", () => {
         data: { event_type: "UNKNOWN", id: "checkout_1" },
         rawData: "",
         headers: {},
-      })
+      }),
     ).resolves.toEqual({ action: PaymentActions.NOT_SUPPORTED })
   })
 })

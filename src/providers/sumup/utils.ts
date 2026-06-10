@@ -4,10 +4,7 @@ import type {
   CheckoutSuccess,
   Currency,
 } from "@sumup/sdk"
-import {
-  PaymentActions,
-  PaymentSessionStatus,
-} from "@medusajs/framework/utils"
+import { PaymentActions, PaymentSessionStatus } from "@medusajs/framework/utils"
 import type { BigNumberInput } from "@medusajs/framework/types"
 
 import type {
@@ -87,7 +84,7 @@ export function normalizeCurrency(currencyCode: string): Currency {
 
 export function resolveCheckoutMode(
   options: SumUpProviderOptions,
-  data?: Record<string, unknown>
+  data?: Record<string, unknown>,
 ): SumUpCheckoutMode {
   const mode = data?.checkout_mode ?? data?.checkoutMode ?? options.checkoutMode
 
@@ -100,7 +97,7 @@ export function resolveCheckoutMode(
 
 export function createCheckoutReference(
   data?: Record<string, unknown>,
-  idempotencyKey?: string
+  idempotencyKey?: string,
 ): string {
   const reference =
     data?.checkout_reference ?? data?.checkoutReference ?? data?.session_id
@@ -115,7 +112,7 @@ export function createCheckoutReference(
 
   return `sumup_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`.slice(
     0,
-    90
+    90,
   )
 }
 
@@ -140,7 +137,7 @@ export function createCheckoutPayload({
   return {
     checkout_reference: createCheckoutReference(
       data,
-      data?.idempotency_key as string | undefined
+      data?.idempotency_key as string | undefined,
     ),
     amount: toMajorUnitNumber(amount),
     currency: normalizeCurrency(currencyCode),
@@ -163,10 +160,14 @@ export function createCheckoutPayload({
   }
 }
 
-export function getSuccessfulTransaction(checkout?: Checkout | CheckoutSuccess) {
-  return checkout?.transactions?.find((transaction: NonNullable<Checkout["transactions"]>[number]) => {
-    return transaction.status === "SUCCESSFUL"
-  })
+export function getSuccessfulTransaction(
+  checkout?: Checkout | CheckoutSuccess,
+) {
+  return checkout?.transactions?.find(
+    (transaction: NonNullable<Checkout["transactions"]>[number]) => {
+      return transaction.status === "SUCCESSFUL"
+    },
+  )
 }
 
 export function getTransactionId(checkout?: Checkout | CheckoutSuccess) {
@@ -214,7 +215,7 @@ export function toStoredPaymentData({
 
 export function mergeCheckoutIntoPaymentData(
   current: Record<string, unknown> | undefined,
-  checkout: Checkout | CheckoutSuccess
+  checkout: Checkout | CheckoutSuccess,
 ): SumUpPaymentData {
   const mode =
     current?.checkout_mode === "widget" || current?.checkout_mode === "hosted"
@@ -228,7 +229,7 @@ export function mergeCheckoutIntoPaymentData(
 }
 
 export function mapCheckoutToSessionStatus(
-  checkout: Checkout | CheckoutSuccess
+  checkout: Checkout | CheckoutSuccess,
 ): PaymentSessionStatus {
   if (getSuccessfulTransaction(checkout) || checkout.status === "PAID") {
     return PaymentSessionStatus.CAPTURED
@@ -247,7 +248,7 @@ export function mapCheckoutToSessionStatus(
 }
 
 export function mapCheckoutToWebhookAction(
-  checkout: Checkout | CheckoutSuccess
+  checkout: Checkout | CheckoutSuccess,
 ): PaymentActions {
   if (getSuccessfulTransaction(checkout) || checkout.status === "PAID") {
     return PaymentActions.SUCCESSFUL

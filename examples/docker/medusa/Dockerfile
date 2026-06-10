@@ -42,8 +42,8 @@ COPY --from=deps /app/node_modules ./node_modules
 # Hand-place the locally-built plugin into node_modules (no npm publish, no
 # registry). We copy only package.json + the compiled `.medusa` output, NOT the
 # plugin's own node_modules, to avoid a duplicate @medusajs/framework instance.
-COPY --from=plugin /plugin/package.json ./node_modules/medusa-plugin-sumup/package.json
-COPY --from=plugin /plugin/.medusa ./node_modules/medusa-plugin-sumup/.medusa
+COPY --from=plugin /plugin/package.json ./node_modules/@sumup/medusa-plugin/package.json
+COPY --from=plugin /plugin/.medusa ./node_modules/@sumup/medusa-plugin/.medusa
 
 # Copy the rest of the backend app (config, src, entrypoint, ...).
 COPY examples/docker/medusa/ ./

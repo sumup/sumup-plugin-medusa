@@ -1,4 +1,4 @@
-# medusa-plugin-sumup
+# @sumup/medusa-plugin
 
 SumUp online payments provider for Medusa v2. The plugin creates SumUp checkouts server-side and supports both:
 
@@ -10,7 +10,7 @@ The plugin never handles raw card data. SumUp credentials stay in the Medusa bac
 ## Install
 
 ```bash
-npm install medusa-plugin-sumup
+npm install @sumup/medusa-plugin
 ```
 
 ## Configure Medusa
@@ -23,7 +23,7 @@ import { defineConfig } from "@medusajs/framework/utils"
 export default defineConfig({
   plugins: [
     {
-      resolve: "medusa-plugin-sumup",
+      resolve: "@sumup/medusa-plugin",
       options: {},
     },
   ],
@@ -33,7 +33,7 @@ export default defineConfig({
       options: {
         providers: [
           {
-            resolve: "medusa-plugin-sumup/providers/sumup",
+            resolve: "@sumup/medusa-plugin/providers/sumup",
             id: "sumup",
             options: {
               apiKey: process.env.SUMUP_API_KEY,
@@ -115,6 +115,8 @@ The checkout reference is used to correlate SumUp events with the Medusa payment
 
 ```bash
 npm install
+npm run format:check
+npm run lint
 npm run typecheck
 npm test
 npm run build
@@ -125,5 +127,16 @@ For local Medusa app testing:
 ```bash
 npx medusa plugin:publish
 cd /path/to/medusa-app
-npx medusa plugin:add medusa-plugin-sumup
+npx medusa plugin:add @sumup/medusa-plugin
 ```
+
+## Testing Strategy
+
+The current test suite covers the provider logic with Vitest unit tests.
+
+For Medusa-level plugin tests, Medusa's testing framework is the recommended path:
+
+- Use `@medusajs/test-utils` with `medusaIntegrationTestRunner` to boot a real Medusa app, load the plugin from source, and exercise payment flows end-to-end.
+- Use `moduleIntegrationTestRunner` when you want faster isolated tests around a single Medusa module instead of a full app boot.
+
+That means the next testing step for this plugin should be an integration suite that starts a temporary Medusa app, registers the SumUp provider, and verifies session creation, webhook handling, and refund behavior against mocked SumUp API responses.

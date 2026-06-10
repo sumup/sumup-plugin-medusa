@@ -1,6 +1,6 @@
 # Local Docker Example
 
-A fully local, end-to-end playground for `medusa-plugin-sumup`. It spins up:
+A fully local, end-to-end playground for `@sumup/medusa-plugin`. It spins up:
 
 - **Postgres** – database for Medusa.
 - **Medusa backend** – builds **this plugin from source** and links it via a
@@ -44,13 +44,13 @@ a payment collection, and a SumUp payment session, then shows a
    `.medusa/server/src/...`.
 2. The final stage installs the Medusa app deps (`@medusajs/*`, `@sumup/sdk`),
    then hand-places the built plugin into
-   `node_modules/medusa-plugin-sumup` (its `package.json` + `.medusa`) — exactly
+   `node_modules/@sumup/medusa-plugin` (its `package.json` + `.medusa`) — exactly
    what `medusa plugin:add` does, just without a local registry.
 3. Crucially, the plugin's own `node_modules` is **not** copied, so the plugin
    resolves `@medusajs/framework` from the app (a duplicate copy would break
    Medusa's dependency injection). `@sumup/sdk` is provided at the app level.
-4. Medusa then resolves `medusa-plugin-sumup` and
-   `medusa-plugin-sumup/providers/sumup` like any installed package.
+4. Medusa then resolves `@sumup/medusa-plugin` and
+   `@sumup/medusa-plugin/providers/sumup` like any installed package.
 
 If you change plugin source, rebuild: `docker compose up --build`.
 

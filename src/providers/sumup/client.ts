@@ -21,7 +21,7 @@ export class SumUpApiClient implements SumUpClient {
 
   async createCheckout(
     payload: CheckoutCreateRequest,
-    idempotencyKey?: string
+    idempotencyKey?: string,
   ): Promise<Checkout> {
     return await this.client_.checkouts.create(payload, {
       headers: idempotencyKey
@@ -42,12 +42,12 @@ export class SumUpApiClient implements SumUpClient {
 
   async refundTransaction(
     transactionId: string,
-    amount?: number
+    amount?: number,
   ): Promise<void> {
     await this.client_.transactions.refund(
       this.merchantCode_,
       transactionId,
-      amount === undefined ? undefined : { amount }
+      amount === undefined ? undefined : { amount },
     )
   }
 }
