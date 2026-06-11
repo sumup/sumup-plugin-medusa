@@ -8,11 +8,11 @@
   "main": "./.medusa/server/src/index.js",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sumup/medusa-plugin-sumup.git"
+    "url": "git+https://github.com/sumup/sumup-plugin-medusa.git"
   },
-  "homepage": "https://github.com/sumup/medusa-plugin-sumup#readme",
+  "homepage": "https://github.com/sumup/sumup-plugin-medusa#readme",
   "bugs": {
-    "url": "https://github.com/sumup/medusa-plugin-sumup/issues"
+    "url": "https://github.com/sumup/sumup-plugin-medusa/issues"
   },
   "packageManager": "yarn@1.22.22",
   "files": [
