@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "description": "Local Medusa backend that loads @sumup/medusa-plugin from source.",
+  "packageManager": "yarn@1.22.22",
   "scripts": {
     "build": "medusa build",
     "seed": "medusa exec ./src/scripts/seed.ts",

@@ -40,7 +40,7 @@ a payment collection, and a SumUp payment session, then shows a
 ## How the plugin is loaded (no npm publish)
 
 1. The backend `Dockerfile` has a first stage that copies this repo's `src/`
-   and runs `npm run build` (`medusa plugin:build`) to produce
+   and runs `yarn build` (`medusa plugin:build`) to produce
    `.medusa/server/src/...`.
 2. The final stage installs the Medusa app deps (`@medusajs/*`, `@sumup/sdk`),
    then hand-places the built plugin into

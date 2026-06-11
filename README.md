@@ -25,7 +25,7 @@ The plugin never handles raw card data directly. SumUp credentials remain on the
 ## Install
 
 ```bash
-npm install @sumup/medusa-plugin
+yarn add @sumup/medusa-plugin
 ```
 
 ## Configure Medusa

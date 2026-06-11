@@ -14,6 +14,7 @@
   "bugs": {
     "url": "https://github.com/sumup/medusa-plugin-sumup/issues"
   },
+  "packageManager": "yarn@1.22.22",
   "files": [
     ".medusa/server",
     "README.md",

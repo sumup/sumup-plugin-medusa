@@ -2,7 +2,7 @@
 set -e
 
 echo "[entrypoint] Running database migrations..."
-npx medusa db:migrate
+yarn medusa db:migrate
 
 # Seed demo data exactly once. The marker lives on the shared volume so it
 # survives restarts; run `docker compose down -v` to reseed from scratch.
@@ -11,7 +11,7 @@ if [ ! -f /shared/.seeded ]; then
   # Run seed outside of set -e so a seed failure doesn't abort the entrypoint.
   # Medusa must still start so the admin dashboard and API are reachable for
   # debugging; the storefront polling will surface the failure via its timeout.
-  if npx medusa exec ./src/scripts/seed.ts; then
+  if yarn medusa exec ./src/scripts/seed.ts; then
     touch /shared/.seeded
     echo "[entrypoint] Seeding complete."
   else
@@ -25,9 +25,9 @@ fi
 
 # Create an admin user so you can log into the dashboard. Ignore if it exists.
 echo "[entrypoint] Ensuring admin user exists..."
-npx medusa user \
+yarn medusa user \
   -e "${MEDUSA_ADMIN_EMAIL:-admin@medusa.local}" \
   -p "${MEDUSA_ADMIN_PASSWORD:-supersecret}" || true
 
 echo "[entrypoint] Starting Medusa (develop mode)..."
-exec npx medusa develop
+exec yarn medusa develop

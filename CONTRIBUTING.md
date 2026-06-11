@@ -11,17 +11,18 @@ This document is for maintainers and contributors working on the plugin itself.
 Install dependencies:
 
 ```bash
-npm install
+corepack enable
+yarn install
 ```
 
 Run the main checks:
 
 ```bash
-npm run format:check
-npm run lint
-npm test
-npm run typecheck
-npm run build
+yarn format:check
+yarn lint
+yarn test
+yarn typecheck
+yarn build
 ```
 
 ## Project Structure
@@ -58,9 +59,9 @@ Relevant references:
 
 Before publishing:
 
-1. Run `npm test`.
-2. Run `npm run typecheck`.
-3. Run `npm run build`.
+1. Run `yarn test`.
+2. Run `yarn typecheck`.
+3. Run `yarn build`.
 4. Run `npm pack --dry-run` and inspect the tarball contents.
 5. Re-read `README.md` from the perspective of a Medusa integrator, not a maintainer.
 6. Confirm package metadata in `package.json` is accurate: version, description, repository, homepage, bugs, keywords, and publish surface.
