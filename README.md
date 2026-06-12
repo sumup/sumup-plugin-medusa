@@ -3,6 +3,11 @@
 # @sumup/medusa-plugin
 
 [![NPM Version](https://img.shields.io/npm/v/%40sumup%2Fmedusa-plugin.svg)](https://www.npmjs.org/package/@sumup/medusa-plugin)
+[![CI](https://github.com/sumup/sumup-plugin-medusa/actions/workflows/ci.yaml/badge.svg)](https://github.com/sumup/sumup-plugin-medusa/actions/workflows/ci.yaml)
+[![Downloads](https://img.shields.io/npm/dm/%40sumup%2Fmedusa-plugin.svg)](https://www.npmjs.com/package/@sumup/medusa-plugin)
+[![License](https://img.shields.io/github/license/sumup/sumup-plugin-medusa)](./LICENSE)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D20-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Medusa](https://img.shields.io/badge/Medusa-v2.15.x-0A7AFF)](https://medusajs.com/)
 
 </div>
 
