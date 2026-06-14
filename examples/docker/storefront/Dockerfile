@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM node:20-bookworm-slim
+FROM node:26-bookworm-slim
 WORKDIR /app
 
 COPY server.js ./server.js
