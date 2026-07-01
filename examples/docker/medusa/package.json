@@ -11,10 +11,10 @@
     "dev": "medusa develop"
   },
   "dependencies": {
-    "@medusajs/admin-sdk": "2.15.5",
-    "@medusajs/cli": "2.15.5",
-    "@medusajs/framework": "2.15.5",
-    "@medusajs/medusa": "2.15.5",
+    "@medusajs/admin-sdk": "2.16.0",
+    "@medusajs/cli": "2.16.0",
+    "@medusajs/framework": "2.16.0",
+    "@medusajs/medusa": "2.16.0",
     "@sumup/sdk": "^0.1.6"
   },
   "devDependencies": {
