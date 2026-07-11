@@ -17,7 +17,7 @@ option, and a publishable API key (auto-shared with the storefront).
 - Docker + Docker Compose
 - A **SumUp sandbox** merchant (API key + merchant code)
 
-## Quick start
+## Quick Start
 
 ```bash
 cd examples/docker
@@ -37,7 +37,7 @@ On the storefront, click **Start SumUp checkout**. The page creates a cart,
 a payment collection, and a SumUp payment session, then shows a
 **Pay with SumUp** link pointing at SumUp's hosted checkout.
 
-## How the plugin is loaded (no npm publish)
+## How the Plugin Is Loaded (no npm publish)
 
 1. The backend `Dockerfile` has a first stage that copies this repo's `src/`
    and runs `yarn build` (`medusa plugin:build`) to produce
@@ -54,7 +54,7 @@ a payment collection, and a SumUp payment session, then shows a
 
 If you change plugin source, rebuild: `docker compose up --build`.
 
-## How the storefront gets its keys
+## How the Storefront Gets Its Keys
 
 The seed script (`medusa/src/scripts/seed.ts`) writes a `config.json`
 (publishable key, backend URL, region id) to a shared Docker volume. The
@@ -66,7 +66,7 @@ Set `SUMUP_CHECKOUT_MODE=widget` in `.env` and rebuild. The payment session
 will then expose a `checkout_id` (no hosted URL); see the widget snippet in
 [`../nextjs`](../nextjs) for how to mount it.
 
-## Webhooks (optional)
+## Webhooks (Optional)
 
 `returnUrl` is set to `http://localhost:9000/hooks/payment/sumup_sumup`, which
 SumUp cannot reach from the internet. To test webhooks, expose the backend with
@@ -79,7 +79,7 @@ in `.env`.
 docker compose down -v   # also drops the DB + reseeds on next up
 ```
 
-## Notes / limitations
+## Notes / Limitations
 
 - Runs Medusa in `develop` mode for simplicity (live source). Not a production
   setup.

@@ -9,9 +9,9 @@ FROM node:26-bookworm AS plugin
 WORKDIR /plugin
 
 COPY package.json yarn.lock tsconfig.json ./
-RUN corepack enable
+RUN npm install --global yarn@1.22.22
 # Cache mount: tarballs are downloaded once and reused across stages/builds.
-RUN --mount=type=cache,target=/usr/local/share/.cache/yarn yarn install --frozen-lockfile
+RUN --mount=type=cache,id=sumup-medusa-yarn-v1,target=/usr/local/share/.cache/yarn,sharing=locked yarn install --frozen-lockfile
 
 COPY src ./src
 RUN yarn build
@@ -23,10 +23,10 @@ FROM node:26-bookworm AS deps
 WORKDIR /app
 
 COPY examples/docker/medusa/package.json examples/docker/medusa/yarn.lock ./
-RUN corepack enable
+RUN npm install --global yarn@1.22.22
 # yarn install uses the lockfile for a clean, reproducible install, with cache
 # hits served from the shared Yarn cache mount.
-RUN --mount=type=cache,target=/usr/local/share/.cache/yarn yarn install --frozen-lockfile
+RUN --mount=type=cache,id=sumup-medusa-yarn-v1,target=/usr/local/share/.cache/yarn,sharing=locked yarn install --frozen-lockfile
 
 # ---------------------------------------------------------------------------
 # Stage 3: the Medusa backend that loads the locally-built plugin.
@@ -34,6 +34,8 @@ RUN --mount=type=cache,target=/usr/local/share/.cache/yarn yarn install --frozen
 FROM node:26-bookworm
 ENV NODE_ENV=development
 WORKDIR /app
+
+RUN npm install --global yarn@1.22.22
 
 # Copy the pre-installed node_modules from the deps stage instead of running
 # yarn install in the final image again. `@medusajs/*` and `@sumup/sdk` live
