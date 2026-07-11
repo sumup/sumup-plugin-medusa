@@ -3,6 +3,7 @@ import type {
   Checkout,
   CheckoutCreateRequest,
   CheckoutSuccess,
+  CheckoutUpdateRequest,
 } from "@sumup/sdk"
 import { describe, expect, it } from "vitest"
 
@@ -12,6 +13,7 @@ import type { SumUpClient } from "../types"
 class FakeSumUpClient implements SumUpClient {
   checkouts = new Map<string, CheckoutSuccess>()
   createdPayloads: CheckoutCreateRequest[] = []
+  updatedPayloads: { checkoutId: string; payload: CheckoutUpdateRequest }[] = []
   refunds: { transactionId: string; amount?: number }[] = []
   deactivated: string[] = []
 
@@ -31,6 +33,28 @@ class FakeSumUpClient implements SumUpClient {
     this.checkouts.set(checkout.id, checkout)
 
     return checkout
+  }
+
+  async updateCheckout(
+    checkoutId: string,
+    payload: CheckoutUpdateRequest,
+  ): Promise<Checkout> {
+    this.updatedPayloads.push({ checkoutId, payload })
+
+    const checkout = this.checkouts.get(checkoutId)
+
+    if (!checkout) {
+      throw new Error(`Missing checkout ${checkoutId}`)
+    }
+
+    const updated = {
+      ...checkout,
+      ...payload,
+    }
+
+    this.checkouts.set(checkoutId, updated)
+
+    return updated
   }
 
   async retrieveCheckout(checkoutId: string): Promise<CheckoutSuccess> {
@@ -244,6 +268,65 @@ describe("SumUpPaymentProviderService", () => {
     expect(result.data?.raw_checkout).toMatchObject({
       status: "EXPIRED",
     })
+  })
+
+  it("updates a pending checkout in place when only mutable fields change", async () => {
+    const { provider, client } = createProvider()
+    const initiated = await provider.initiatePayment({
+      amount: 20,
+      currency_code: "eur",
+      data: { session_id: "payses_update" },
+    })
+
+    const result = await provider.updatePayment({
+      amount: 25,
+      currency_code: "eur",
+      data: {
+        ...initiated.data,
+        description: "Updated payment",
+      },
+    })
+
+    expect(result.status).toBe(PaymentSessionStatus.PENDING)
+    expect(result.data?.checkout_id).toBe("checkout_1")
+    expect(result.data?.amount).toBe(25)
+    expect(client.updatedPayloads).toEqual([
+      {
+        checkoutId: "checkout_1",
+        payload: {
+          amount: 25,
+          description: "Updated payment",
+        },
+      },
+    ])
+    expect(client.deactivated).toEqual([])
+    expect(client.createdPayloads).toHaveLength(1)
+  })
+
+  it("replaces a pending checkout when switching checkout modes", async () => {
+    const { provider, client } = createProvider()
+    const initiated = await provider.initiatePayment({
+      amount: 20,
+      currency_code: "eur",
+      data: { session_id: "payses_replace" },
+    })
+
+    const result = await provider.updatePayment({
+      amount: 25,
+      currency_code: "eur",
+      data: {
+        ...initiated.data,
+        checkout_mode: "widget",
+      },
+    })
+
+    expect(result.status).toBe(PaymentSessionStatus.PENDING)
+    expect(result.data?.checkout_id).toBe("checkout_2")
+    expect(result.data?.checkout_mode).toBe("widget")
+    expect(client.updatedPayloads).toEqual([])
+    expect(client.deactivated).toEqual(["checkout_1"])
+    expect(client.createdPayloads).toHaveLength(2)
+    expect(client.createdPayloads[1].hosted_checkout).toBeUndefined()
   })
 
   it("ignores unsupported webhook events", async () => {

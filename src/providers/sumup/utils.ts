@@ -4,6 +4,7 @@ import type {
   Checkout,
   CheckoutCreateRequest,
   CheckoutSuccess,
+  CheckoutUpdateRequest,
   Currency,
 } from "@sumup/sdk"
 
@@ -158,6 +159,35 @@ export function createCheckoutPayload({
           }
         : undefined,
   }
+}
+
+export function createCheckoutUpdatePayload({
+  amount,
+  currencyCode,
+  data,
+}: {
+  amount: BigNumberInput
+  currencyCode: string
+  data?: Record<string, unknown>
+}): CheckoutUpdateRequest {
+  const payload: CheckoutUpdateRequest = {
+    amount: toMajorUnitNumber(amount),
+    currency: normalizeCurrency(currencyCode),
+  }
+
+  const description = data?.description ?? data?.payment_description
+
+  if (typeof description === "string") {
+    payload.description = description
+  }
+
+  const checkoutReference = data?.checkout_reference ?? data?.checkoutReference
+
+  if (typeof checkoutReference === "string" && checkoutReference.length > 0) {
+    payload.checkout_reference = checkoutReference.slice(0, 90)
+  }
+
+  return payload
 }
 
 export function getSuccessfulTransaction(

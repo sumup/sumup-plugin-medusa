@@ -26,6 +26,7 @@ import {
   PaymentActions,
   PaymentSessionStatus,
 } from "@medusajs/framework/utils"
+import type { CheckoutUpdateRequest } from "@sumup/sdk"
 
 import { SumUpApiClient } from "./client"
 import type {
@@ -36,6 +37,7 @@ import type {
 } from "./types"
 import {
   createCheckoutPayload,
+  createCheckoutUpdatePayload,
   getTransactionId,
   mapCheckoutToSessionStatus,
   mapCheckoutToWebhookAction,
@@ -234,13 +236,43 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
   async updatePayment(input: UpdatePaymentInput): Promise<UpdatePaymentOutput> {
     const checkout = await this.retrieveProviderCheckout(input.data)
     const status = mapCheckoutToSessionStatus(checkout)
-    const currentAmount = toMajorUnitNumber(input.amount)
-    const currentCurrency = input.currency_code.toUpperCase()
+    const currentMode = resolveCheckoutMode(this.options_, input.data)
+    const paymentData = input.data as SumUpPaymentData | undefined
+    const existingMode =
+      checkout.hosted_checkout_url || paymentData?.hosted_checkout_url
+        ? "hosted"
+        : "widget"
+    const requestedUpdatePayload = createCheckoutUpdatePayload({
+      amount: input.amount,
+      currencyCode: input.currency_code,
+      data: input.data,
+    })
+    const updatePayload: CheckoutUpdateRequest = {}
+
+    if (checkout.amount !== requestedUpdatePayload.amount) {
+      updatePayload.amount = requestedUpdatePayload.amount
+    }
+
+    if (checkout.currency !== requestedUpdatePayload.currency) {
+      updatePayload.currency = requestedUpdatePayload.currency
+    }
 
     if (
-      checkout.amount === currentAmount &&
-      checkout.currency === currentCurrency
+      requestedUpdatePayload.description !== undefined &&
+      checkout.description !== requestedUpdatePayload.description
     ) {
+      updatePayload.description = requestedUpdatePayload.description
+    }
+
+    if (
+      requestedUpdatePayload.checkout_reference !== undefined &&
+      checkout.checkout_reference !== requestedUpdatePayload.checkout_reference
+    ) {
+      updatePayload.checkout_reference =
+        requestedUpdatePayload.checkout_reference
+    }
+
+    if (Object.keys(updatePayload).length === 0) {
       return {
         status,
         data: mergeCheckoutIntoPaymentData(
@@ -255,6 +287,31 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
         MedusaError.Types.UNEXPECTED_STATE,
         "Cannot update a SumUp checkout after it has been paid.",
       )
+    }
+
+    if (
+      status === PaymentSessionStatus.PENDING &&
+      existingMode === currentMode
+    ) {
+      if (!checkout.id) {
+        throw new MedusaError(
+          MedusaError.Types.UNEXPECTED_STATE,
+          "Cannot update a SumUp checkout without an existing checkout id.",
+        )
+      }
+
+      const updated = await this.client_.updateCheckout(
+        checkout.id,
+        updatePayload,
+      )
+
+      return {
+        status: PaymentSessionStatus.PENDING,
+        data: mergeCheckoutIntoPaymentData(
+          input.data,
+          updated,
+        ) as unknown as Record<string, unknown>,
+      }
     }
 
     if (!checkout.id) {

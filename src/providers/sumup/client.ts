@@ -2,6 +2,7 @@ import SumUp, {
   type Checkout,
   type CheckoutCreateRequest,
   type CheckoutSuccess,
+  type CheckoutUpdateRequest,
 } from "@sumup/sdk"
 
 import type { SumUpClient, SumUpProviderOptions } from "./types"
@@ -30,6 +31,13 @@ export class SumUpApiClient implements SumUpClient {
           }
         : undefined,
     })
+  }
+
+  async updateCheckout(
+    checkoutId: string,
+    payload: CheckoutUpdateRequest,
+  ): Promise<Checkout> {
+    return await this.client_.checkouts.update(checkoutId, payload)
   }
 
   async retrieveCheckout(checkoutId: string): Promise<CheckoutSuccess> {

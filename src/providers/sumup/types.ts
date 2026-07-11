@@ -2,6 +2,7 @@ import type {
   Checkout,
   CheckoutCreateRequest,
   CheckoutSuccess,
+  CheckoutUpdateRequest,
 } from "@sumup/sdk"
 
 export type SumUpCheckoutMode = "hosted" | "widget"
@@ -22,6 +23,10 @@ export type SumUpClient = {
   createCheckout(
     payload: CheckoutCreateRequest,
     idempotencyKey?: string,
+  ): Promise<Checkout>
+  updateCheckout(
+    checkoutId: string,
+    payload: CheckoutUpdateRequest,
   ): Promise<Checkout>
   retrieveCheckout(checkoutId: string): Promise<CheckoutSuccess>
   deactivateCheckout(checkoutId: string): Promise<Checkout>

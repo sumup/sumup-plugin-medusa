@@ -15,7 +15,7 @@
     "@medusajs/cli": "2.16.0",
     "@medusajs/framework": "2.16.0",
     "@medusajs/medusa": "2.16.0",
-    "@sumup/sdk": "^0.1.6",
+    "@sumup/sdk": "^0.1.7",
     "i18next": "23.7.11",
     "react-i18next": "13.5.0"
   },

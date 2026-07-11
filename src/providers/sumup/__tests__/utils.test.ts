@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   createCheckoutPayload,
+  createCheckoutUpdatePayload,
   mapCheckoutToSessionStatus,
   mapCheckoutToWebhookAction,
   toMajorUnitNumber,
@@ -52,6 +53,24 @@ describe("SumUp provider utilities", () => {
     expect(payload.hosted_checkout).toBeUndefined()
     expect(payload.checkout_reference).toBe("payses_widget")
     expect(payload.amount).toBe(19.99)
+  })
+
+  it("creates a checkout update payload from mutable fields", () => {
+    const payload = createCheckoutUpdatePayload({
+      amount: "15.25",
+      currencyCode: "usd",
+      data: {
+        description: "Updated order",
+        checkout_reference: "payses_updated",
+      },
+    })
+
+    expect(payload).toEqual({
+      amount: 15.25,
+      currency: "USD",
+      description: "Updated order",
+      checkout_reference: "payses_updated",
+    })
   })
 
   it("normalizes Medusa BigNumber-like amounts", () => {
