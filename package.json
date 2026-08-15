@@ -1,6 +1,6 @@
 {
   "name": "@sumup/medusa-plugin",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "SumUp payment provider for Medusa v2.",
   "author": "SumUp <support@sumup.com> (https://sumup.com/)",
   "license": "Apache-2.0",
