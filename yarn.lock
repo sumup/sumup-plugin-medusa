@@ -3540,9 +3540,9 @@
   integrity sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==
 
 "@sumup/sdk@^0.1.7":
-  version "0.1.7"
-  resolved "https://registry.yarnpkg.com/@sumup/sdk/-/sdk-0.1.7.tgz#5fbecce4e65fce4ad37656a59cfa344587e263ee"
-  integrity sha512-cOdx0EJNE4bzLTL3FyzmS3n4kkkfVDdXl6CgO0Ic9mS/Sxi3+iF0VkXNLTonuW2jv6e5ZldR087LU3opORDYxg==
+  version "0.1.8"
+  resolved "https://registry.yarnpkg.com/@sumup/sdk/-/sdk-0.1.8.tgz#a70dc199cef34814c70b6d7c985db9d6b68caf77"
+  integrity sha512-f4QjASvqExp0NicCXgkP0tzsH5Wb8Kig+/Uk2VvKfezMlq5m/Q8MIAQ2kuWAzPbk5QwO5WT66hVNvmrFzDyzbw==
 
 "@swc/helpers@^0.5.0":
   version "0.5.23"
