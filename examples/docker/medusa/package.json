@@ -16,7 +16,7 @@
     "@medusajs/framework": "2.16.0",
     "@medusajs/medusa": "2.16.0",
     "@sumup/sdk": "^0.1.7",
-    "i18next": "23.7.11",
+    "i18next": "26.4.0",
     "react-i18next": "13.5.0"
   },
   "devDependencies": {
