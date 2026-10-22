@@ -5,7 +5,7 @@
 # No `npm publish` and no local registry needed - we compile `.medusa/server`
 # and later hand-place it into the Medusa app's node_modules.
 # ---------------------------------------------------------------------------
-FROM node:26-bookworm AS plugin
+FROM node:26.12.1-bookworm@sha256:5c4012d11d9857c42713ba511fbc19645cac1706bb710d51d42b0d301dff7f88 AS plugin
 WORKDIR /plugin
 
 COPY package.json yarn.lock tsconfig.json ./
@@ -19,7 +19,7 @@ RUN yarn build
 # ---------------------------------------------------------------------------
 # Stage 2: install backend dependencies (isolated so the layer is cacheable).
 # ---------------------------------------------------------------------------
-FROM node:26-bookworm AS deps
+FROM node:26.12.1-bookworm@sha256:5c4012d11d9857c42713ba511fbc19645cac1706bb710d51d42b0d301dff7f88 AS deps
 WORKDIR /app
 
 COPY examples/docker/medusa/package.json examples/docker/medusa/yarn.lock ./
@@ -31,7 +31,7 @@ RUN --mount=type=cache,id=sumup-medusa-yarn-v1,target=/usr/local/share/.cache/ya
 # ---------------------------------------------------------------------------
 # Stage 3: the Medusa backend that loads the locally-built plugin.
 # ---------------------------------------------------------------------------
-FROM node:26-bookworm
+FROM node:26.12.1-bookworm@sha256:5c4012d11d9857c42713ba511fbc19645cac1706bb710d51d42b0d301dff7f88
 ENV NODE_ENV=development
 WORKDIR /app
 
