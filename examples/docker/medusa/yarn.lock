@@ -4270,11 +4270,6 @@ buffer-equal-constant-time@^1.0.1:
   resolved "https://registry.yarnpkg.com/buffer-equal-constant-time/-/buffer-equal-constant-time-1.0.1.tgz#f8e71132f7ffe6e01a5c9697a4c6f3e48d5cc819"
   integrity sha512-zRpUiDwd/xk6ADqPMATG8vc9VPrkck7T07OIx0gnjmJAnHnTVXNQG3vfvWNuiZIkwu9KrKdA1iJKfsfTVxE6NA==
 
-buffer-from@^1.0.0:
-  version "1.1.2"
-  resolved "https://registry.yarnpkg.com/buffer-from/-/buffer-from-1.1.2.tgz#2b146a6fd72e80b4f55d255f35ed59a3a9a41bd5"
-  integrity sha512-E+XQCRwSbaaiChtv6k6Dwgc+bx+Bs6vuKJHHl5kox/BaKbhiXzqQOwK4cO22yElGp2OCmjwVhT3HmxgyPGnJfQ==
-
 buffer@5.6.0:
   version "5.6.0"
   resolved "https://registry.yarnpkg.com/buffer/-/buffer-5.6.0.tgz#a31749dc7d81d84db08abf937b6b8c4033f62786"
@@ -4631,16 +4626,6 @@ compression@^1.8.0, compression@^1.8.1:
     on-headers "~1.1.0"
     safe-buffer "5.2.1"
     vary "~1.1.2"
-
-concat-stream@^2.0.0:
-  version "2.0.0"
-  resolved "https://registry.yarnpkg.com/concat-stream/-/concat-stream-2.0.0.tgz#414cf5af790a48c60ab9be4527d56d5e41133cb1"
-  integrity sha512-MWufYdFw53ccGjCA+Ol7XJYpAlW6/prSMzuPOTRnJGcGzuhLn4Scrz7qf6o8bROZ514ltazcIFJZevcfbo0x7A==
-  dependencies:
-    buffer-from "^1.0.0"
-    inherits "^2.0.3"
-    readable-stream "^3.0.2"
-    typedarray "^0.0.6"
 
 configstore@^5.0.1:
   version "5.0.1"
@@ -6378,13 +6363,12 @@ msgpackr@^1.10.1:
     msgpackr-extract "^3.0.2"
 
 multer@^2.0.2:
-  version "2.2.0"
-  resolved "https://registry.yarnpkg.com/multer/-/multer-2.2.0.tgz#f005268ca816324ba7335e3b48166896a3fa5d79"
-  integrity sha512-6rdyFg2kLrMh9Jee7/BMPuV9lEAd7lLW2YUpF9/YxR7njyoUwwQ0ZPh3TaIY50Sw6vlyD2HW3wGOkTS4P79xrQ==
+  version "2.5.0"
+  resolved "https://registry.yarnpkg.com/multer/-/multer-2.5.0.tgz#92e08d5015b53fb554d5d623398d67b8b146ded2"
+  integrity sha512-BsqOzYGVq49JcW2IzoSAxeKYRevb+dGGPPWleOR8Lrlk4igwxu1/9pwSXlByhCb7MVZDrNJFC0IBP5/O5nLYRw==
   dependencies:
     append-field "^1.0.0"
     busboy "^1.6.0"
-    concat-stream "^2.0.0"
     type-is "^1.6.18"
 
 mute-stream@0.0.8:
@@ -7177,7 +7161,7 @@ read-cache@^1.0.0:
   dependencies:
     pify "^2.3.0"
 
-readable-stream@^3.0.2, readable-stream@^3.4.0, readable-stream@^3.5.0, readable-stream@^3.6.2:
+readable-stream@^3.4.0, readable-stream@^3.5.0, readable-stream@^3.6.2:
   version "3.6.2"
   resolved "https://registry.yarnpkg.com/readable-stream/-/readable-stream-3.6.2.tgz#56a9b36ea965c00c5a93ef31eb111a0f11056967"
   integrity sha512-9u/sniCrY3D5WdsERHzHE4G2YCXqoG5FTHUiCC4SIbr6XcLZBY05ya9EKjYek9O5xOAwjGq+1JdGBAS7Q9ScoA==
@@ -7928,11 +7912,6 @@ typedarray-to-buffer@^3.1.5:
   integrity sha512-zdu8XMNEDepKKR+XYOXAVPtWui0ly0NtohUscw+UmaHiAWT8hrV1rr//H6V+0DvJ3OQ19S979M0laLfX8rm82Q==
   dependencies:
     is-typedarray "^1.0.0"
-
-typedarray@^0.0.6:
-  version "0.0.6"
-  resolved "https://registry.yarnpkg.com/typedarray/-/typedarray-0.0.6.tgz#867ac74e3864187b1d3d47d996a78ec5c8830777"
-  integrity sha512-/aCDEGatGvZ2BIk+HmLf4ifCJFwvKFNb9/JeZPMulfgFracn9QFcAf5GO8B/mweUjSoblS5In0cWhqpfs/5PQA==
 
 typescript@^6.0.3:
   version "6.0.3"
