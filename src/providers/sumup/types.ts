@@ -30,6 +30,7 @@ export type SumUpClient = {
   ): Promise<Checkout>
   retrieveCheckout(checkoutId: string): Promise<CheckoutSuccess>
   deactivateCheckout(checkoutId: string): Promise<Checkout>
+  /** Amount is an integer in SumUp minor units; omit for a full refund. */
   refundTransaction(transactionId: string, amount?: number): Promise<void>
 }
 

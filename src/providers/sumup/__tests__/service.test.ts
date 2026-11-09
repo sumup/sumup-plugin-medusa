@@ -170,14 +170,15 @@ describe("SumUpPaymentProviderService", () => {
     const { provider, client } = createProvider()
 
     await provider.refundPayment({
-      amount: 5,
+      amount: 5.25,
       data: {
         checkout_id: "checkout_1",
+        currency: "EUR",
         transaction_id: "txn_1",
       },
     })
 
-    expect(client.refunds).toEqual([{ transactionId: "txn_1", amount: 5 }])
+    expect(client.refunds).toEqual([{ transactionId: "txn_1", amount: 525 }])
   })
 
   it("looks up a transaction before refunding when stored data is incomplete", async () => {
@@ -206,7 +207,54 @@ describe("SumUpPaymentProviderService", () => {
       },
     })
 
-    expect(client.refunds).toEqual([{ transactionId: "txn_lookup", amount: 3 }])
+    expect(client.refunds).toEqual([
+      { transactionId: "txn_lookup", amount: 300 },
+    ])
+  })
+
+  it.each([0, -1, NaN, Infinity, 0.001])(
+    "does not submit invalid refund amount %s",
+    async (amount) => {
+      const { provider, client } = createProvider()
+      await expect(
+        provider.refundPayment({
+          amount,
+          data: { transaction_id: "txn_1", currency: "EUR" },
+        }),
+      ).rejects.toThrow("Refund amount")
+      expect(client.refunds).toEqual([])
+    },
+  )
+
+  it("retrieves the currency when only the transaction id is stored", async () => {
+    const { provider, client } = createProvider()
+    client.checkouts.set("checkout_1", {
+      id: "checkout_1",
+      checkout_reference: "payses_currency",
+      currency: "CLP",
+      status: "PAID",
+    })
+    await provider.refundPayment({
+      amount: 500,
+      data: { checkout_id: "checkout_1", transaction_id: "txn_1" },
+    })
+    expect(client.refunds).toEqual([{ transactionId: "txn_1", amount: 500 }])
+  })
+
+  it("does not submit a refund when the checkout currency is missing", async () => {
+    const { provider, client } = createProvider()
+    client.checkouts.set("checkout_1", {
+      id: "checkout_1",
+      checkout_reference: "payses_currency_missing",
+      status: "PAID",
+    })
+    await expect(
+      provider.refundPayment({
+        amount: 5,
+        data: { checkout_id: "checkout_1", transaction_id: "txn_1" },
+      }),
+    ).rejects.toThrow("currency")
+    expect(client.refunds).toEqual([])
   })
 
   it("maps SumUp checkout webhooks after verifying through the API", async () => {
