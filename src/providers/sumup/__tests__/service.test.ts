@@ -234,11 +234,17 @@ describe("SumUpPaymentProviderService", () => {
       currency: "CLP",
       status: "PAID",
     })
-    await provider.refundPayment({
+    const result = await provider.refundPayment({
       amount: 500,
       data: { checkout_id: "checkout_1", transaction_id: "txn_1" },
     })
-    expect(client.refunds).toEqual([{ transactionId: "txn_1", amount: 500 }])
+    expect(result.data?.transaction_id).toBe("txn_1")
+
+    await provider.refundPayment({ amount: 100, data: result.data })
+    expect(client.refunds).toEqual([
+      { transactionId: "txn_1", amount: 500 },
+      { transactionId: "txn_1", amount: 100 },
+    ])
   })
 
   it("does not submit a refund when the checkout currency is missing", async () => {
