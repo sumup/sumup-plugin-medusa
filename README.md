@@ -6,8 +6,8 @@
 [![CI](https://github.com/sumup/sumup-plugin-medusa/actions/workflows/ci.yaml/badge.svg)](https://github.com/sumup/sumup-plugin-medusa/actions/workflows/ci.yaml)
 [![Downloads](https://img.shields.io/npm/dm/%40sumup%2Fmedusa-plugin.svg)](https://www.npmjs.com/package/@sumup/medusa-plugin)
 [![License](https://img.shields.io/github/license/sumup/sumup-plugin-medusa)](./LICENSE)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D20-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
-[![Medusa](https://img.shields.io/badge/Medusa-v2.15.x-0A7AFF)](https://medusajs.com/)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D22.22.0-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Medusa](https://img.shields.io/badge/Medusa-v2-0A7AFF)](https://medusajs.com/)
 
 </div>
 
@@ -24,7 +24,8 @@ The plugin never handles raw card data directly. SumUp credentials remain on the
 
 ## Compatibility
 
-- Medusa v2.15.x
+- Medusa v2.15.5 or later (tested with v2.22.0).
+- Node.js 22.22.0 or later.
 - SumUp online checkout flows
 
 ## Install
