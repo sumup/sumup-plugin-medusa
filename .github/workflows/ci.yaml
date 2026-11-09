@@ -46,3 +46,15 @@ jobs:
 
       - name: Check package contents
         run: npm pack --dry-run --ignore-scripts
+
+      - name: Install example dependencies
+        run: yarn --cwd examples/docker/medusa install --frozen-lockfile
+
+      - name: Load built plugin into example
+        run: |
+          mkdir -p examples/docker/medusa/node_modules/@sumup/medusa-plugin
+          cp package.json examples/docker/medusa/node_modules/@sumup/medusa-plugin/
+          cp -R .medusa examples/docker/medusa/node_modules/@sumup/medusa-plugin/
+
+      - name: Build example backend and admin
+        run: yarn --cwd examples/docker/medusa build
