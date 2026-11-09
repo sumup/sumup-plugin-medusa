@@ -27,14 +27,11 @@ jobs:
       - name: Enable Corepack
         run: corepack enable
 
-      - name: Setup Biome CLI
-        uses: biomejs/setup-biome@4c91541eaada48f67d7dbd7833600ce162b68f51 # v2.7.1
-
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
       - name: Lint code
-        run: biome ci --diagnostic-level=error --reporter=github
+        run: yarn biome ci --diagnostic-level=error --reporter=github
 
       - name: Test provider behavior
         run: yarn test
