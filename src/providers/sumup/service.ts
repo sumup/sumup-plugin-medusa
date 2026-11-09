@@ -187,7 +187,7 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
     )
 
     return {
-      data: nextData,
+      data: { ...nextData, transaction_id: transactionId },
     }
   }
 
