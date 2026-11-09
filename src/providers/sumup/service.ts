@@ -43,7 +43,7 @@ import {
   mapCheckoutToWebhookAction,
   mergeCheckoutIntoPaymentData,
   resolveCheckoutMode,
-  toMajorUnitNumber,
+  toRefundMinorUnits,
   toStoredPaymentData,
 } from "./utils"
 
@@ -154,11 +154,13 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
   }: RefundPaymentInput): Promise<RefundPaymentOutput> {
     const paymentData = data as SumUpPaymentData | undefined
     let transactionId = paymentData?.transaction_id
+    let currency = paymentData?.currency
     let nextData = data
 
-    if (!transactionId) {
+    if (!transactionId || !currency) {
       const checkout = await this.retrieveProviderCheckout(data)
-      transactionId = getTransactionId(checkout)
+      transactionId = getTransactionId(checkout) ?? transactionId
+      currency = checkout.currency
       nextData = mergeCheckoutIntoPaymentData(
         data,
         checkout,
@@ -172,9 +174,16 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
       )
     }
 
+    if (!currency) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "Cannot refund SumUp payment without its currency.",
+      )
+    }
+
     await this.client_.refundTransaction(
       transactionId,
-      toMajorUnitNumber(amount),
+      toRefundMinorUnits(amount, currency),
     )
 
     return {

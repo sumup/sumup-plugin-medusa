@@ -137,7 +137,7 @@ The payment-session data returned by the provider includes:
 - `authorizePayment` checks the remote SumUp checkout status rather than performing a separate authorization step.
 - `capturePayment` does not trigger a separate capture API call. It only succeeds once the SumUp checkout is already paid.
 - If the amount, currency, description, or checkout reference changes before payment, `updatePayment` updates the existing SumUp checkout when possible. It deactivates the old checkout and creates a replacement only when the requested change cannot be patched in place, such as switching checkout modes.
-- Refunds require a successful SumUp transaction.
+- Refunds require a successful SumUp transaction and its currency. Medusa refund amounts use major units; the plugin converts them to integer minor units for SumUp (for example, EUR 5.25 becomes 525). CLP, COP, and HUF use zero decimal places. Refunds with invalid or fractional minor-unit amounts are rejected.
 - The plugin is built for SumUp online payments, not terminal or card-present flows.
 
 ## Sandbox Checklist

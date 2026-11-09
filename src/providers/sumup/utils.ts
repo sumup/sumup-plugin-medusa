@@ -73,6 +73,34 @@ export function toMajorUnitNumber(amount: BigNumberInput): number {
   return Number(amount)
 }
 
+// SumUp uses zero decimals for these currencies, including COP and HUF.
+const ZERO_DECIMAL_CURRENCIES = new Set(["CLP", "COP", "HUF"])
+
+export function toRefundMinorUnits(
+  amount: BigNumberInput,
+  currencyCode: string,
+): number {
+  const currency = normalizeCurrency(currencyCode)
+  const majorUnits = toMajorUnitNumber(amount)
+  const scaled = majorUnits * (ZERO_DECIMAL_CURRENCIES.has(currency) ? 1 : 100)
+  const minorUnits = Math.round(scaled)
+  // Allow floating-point multiplication noise, but never round a fractional cent.
+  const tolerance = Math.min(1e-7, Number.EPSILON * Math.abs(scaled) * 4)
+
+  if (
+    !Number.isFinite(majorUnits) ||
+    !Number.isSafeInteger(minorUnits) ||
+    minorUnits <= 0 ||
+    Math.abs(scaled - minorUnits) > tolerance
+  ) {
+    throw new Error(
+      `Refund amount must be positive and representable in ${currency} minor units.`,
+    )
+  }
+
+  return minorUnits
+}
+
 export function normalizeCurrency(currencyCode: string): Currency {
   const currency = currencyCode.toUpperCase()
 
