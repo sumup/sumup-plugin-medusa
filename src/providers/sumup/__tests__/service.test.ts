@@ -329,6 +329,31 @@ describe("SumUpPaymentProviderService", () => {
     expect(client.createdPayloads[1].hosted_checkout).toBeUndefined()
   })
 
+  it("replaces a pending checkout when only the checkout mode changes", async () => {
+    const { provider, client } = createProvider()
+    const initiated = await provider.initiatePayment({
+      amount: 20,
+      currency_code: "eur",
+      data: { session_id: "payses_mode_only" },
+    })
+
+    const result = await provider.updatePayment({
+      amount: 20,
+      currency_code: "eur",
+      data: {
+        ...initiated.data,
+        checkout_mode: "widget",
+      },
+    })
+
+    expect(result.data?.checkout_id).toBe("checkout_2")
+    expect(result.data?.checkout_mode).toBe("widget")
+    expect(result.data?.hosted_checkout_url).toBeUndefined()
+    expect(client.deactivated).toEqual(["checkout_1"])
+    expect(client.createdPayloads).toHaveLength(2)
+    expect(client.updatedPayloads).toEqual([])
+  })
+
   it("ignores unsupported webhook events", async () => {
     const { provider } = createProvider()
 

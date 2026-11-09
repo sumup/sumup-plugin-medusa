@@ -195,7 +195,7 @@
       try {
         return new Intl.NumberFormat("en-DE", {
           style: "currency", currency: currency.toUpperCase()
-        }).format(Number(amount) / 100)
+        }).format(Number(amount))
       } catch { return `${amount} ${currency.toUpperCase()}` }
     }
 

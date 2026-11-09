@@ -272,7 +272,10 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
         requestedUpdatePayload.checkout_reference
     }
 
-    if (Object.keys(updatePayload).length === 0) {
+    if (
+      Object.keys(updatePayload).length === 0 &&
+      existingMode === currentMode
+    ) {
       return {
         status,
         data: mergeCheckoutIntoPaymentData(
