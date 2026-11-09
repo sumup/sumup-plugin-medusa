@@ -12,6 +12,10 @@ updates:
       prefix: "chore"
     labels:
       - "dependencies"
+    # Medusa and ts-node require the TypeScript 6 compiler API.
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
     groups:
       medusa:
         patterns:
@@ -37,6 +41,10 @@ updates:
       prefix: "chore"
     labels:
       - "dependencies"
+    # Medusa and ts-node require the TypeScript 6 compiler API.
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
     groups:
       medusa-example:
         patterns:
