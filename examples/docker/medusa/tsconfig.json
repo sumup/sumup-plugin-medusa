@@ -9,8 +9,7 @@
     "strict": false,
     "jsx": "react-jsx",
     "outDir": "./dist",
-    "baseUrl": ".",
-    "rootDir": "src",
+    "rootDir": ".",
     "lib": ["ES2021"],
     "types": ["node"]
   },
