@@ -20,18 +20,29 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 20
+          node-version: 24
           cache: yarn
           cache-dependency-path: yarn.lock
 
       - name: Enable Corepack
         run: corepack enable
 
-      - name: Setup Biome CLI
-        uses: biomejs/setup-biome@4c91541eaada48f67d7dbd7833600ce162b68f51 # v2.7.1
-
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
       - name: Lint code
-        run: biome ci --diagnostic-level=error --reporter=github
+        run: yarn biome ci --diagnostic-level=error --reporter=github
+
+      - name: Test provider behavior
+        run: yarn test
+
+      - name: Typecheck
+        run: yarn typecheck
+
+      - name: Build plugin bundle
+        run: |
+          yarn build
+          test -f .medusa/server/src/providers/sumup/index.js
+
+      - name: Check package contents
+        run: npm pack --dry-run --ignore-scripts
