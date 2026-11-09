@@ -11,7 +11,13 @@
     }
   },
   "files": {
-    "includes": ["**", "!**/.medusa", "!**/coverage", "!**/node_modules"]
+    "includes": [
+      "**",
+      "!**/.medusa",
+      "!**/coverage",
+      "!**/dist",
+      "!**/node_modules"
+    ]
   },
   "javascript": {
     "formatter": {
