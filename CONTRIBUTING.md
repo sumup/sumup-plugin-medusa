@@ -84,3 +84,9 @@ Document user-visible changes in terms of:
 - Configuration changes.
 - Behavioral changes in payment, webhook, or refund handling.
 - Medusa version compatibility updates.
+
+## Release Publishing
+
+Publishing a GitHub release starts `.github/workflows/release.yaml`. npm publishing uses GitHub OIDC trusted publishing. In the npm settings for `@sumup/medusa-plugin`, configure the GitHub organization as `sumup`, the repository as `sumup-plugin-medusa`, and the workflow filename as `release.yaml`. Allow direct publishing with `npm publish`.
+
+The workflow grants `id-token: write`; no npm token secret is needed. After publishing, confirm the workflow succeeded and verify the version and tarball on npm. A GitHub release alone does not mean the package was published.
