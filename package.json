@@ -22,7 +22,7 @@
     "LICENSE"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=22.22.0"
   },
   "publishConfig": {
     "provenance": true,
@@ -63,7 +63,7 @@
     "@medusajs/medusa": "^2.15.5",
     "@types/node": "^26.0.0",
     "ts-node": "^10.9.2",
-    "typescript": "^7.0.2",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.8"
   },
   "peerDependencies": {
