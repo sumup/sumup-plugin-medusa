@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto"
 import type { BigNumberInput } from "@medusajs/framework/types"
 import { PaymentActions, PaymentSessionStatus } from "@medusajs/framework/utils"
 import type {
@@ -96,25 +97,29 @@ export function resolveCheckoutMode(
   return "hosted"
 }
 
+export function getMedusaSessionId(reference?: string): string | undefined {
+  if (!reference) return undefined
+  const match = /^(payses_[A-Za-z0-9_]{1,40})(?::[a-f0-9]{16})?$/.exec(
+    reference,
+  )
+  return match?.[1]
+}
+
 export function createCheckoutReference(
   data?: Record<string, unknown>,
-  idempotencyKey?: string,
 ): string {
-  const reference =
-    data?.checkout_reference ?? data?.checkoutReference ?? data?.session_id
+  const sessionId =
+    typeof data?.session_id === "string"
+      ? getMedusaSessionId(data.session_id)
+      : undefined
 
-  if (typeof reference === "string" && reference.length > 0) {
-    return reference.slice(0, 90)
+  if (!sessionId) {
+    throw new Error(
+      "A valid Medusa payment session_id is required to create a SumUp checkout.",
+    )
   }
 
-  if (idempotencyKey) {
-    return idempotencyKey.slice(0, 90)
-  }
-
-  return `sumup_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`.slice(
-    0,
-    90,
-  )
+  return `${sessionId}:${randomUUID().replaceAll("-", "").slice(0, 16)}`
 }
 
 export function createCheckoutPayload({
@@ -136,10 +141,7 @@ export function createCheckoutPayload({
     "Medusa order payment"
 
   return {
-    checkout_reference: createCheckoutReference(
-      data,
-      data?.idempotency_key as string | undefined,
-    ),
+    checkout_reference: createCheckoutReference(data),
     amount: toMajorUnitNumber(amount),
     currency: normalizeCurrency(currencyCode),
     merchant_code: options.merchantCode,
@@ -179,12 +181,6 @@ export function createCheckoutUpdatePayload({
 
   if (typeof description === "string") {
     payload.description = description
-  }
-
-  const checkoutReference = data?.checkout_reference ?? data?.checkoutReference
-
-  if (typeof checkoutReference === "string" && checkoutReference.length > 0) {
-    payload.checkout_reference = checkoutReference.slice(0, 90)
   }
 
   return payload
@@ -239,7 +235,6 @@ export function toStoredPaymentData({
     merchant_code: checkout.merchant_code ?? "",
     currency: checkout.currency,
     amount: checkout.amount,
-    raw_checkout: checkout,
   }
 }
 
@@ -252,8 +247,11 @@ export function mergeCheckoutIntoPaymentData(
       ? current.checkout_mode
       : "hosted"
 
+  const safeCurrent = { ...current }
+  delete safeCurrent.raw_checkout
+
   return {
-    ...(current as SumUpPaymentData | undefined),
+    ...(safeCurrent as SumUpPaymentData),
     ...toStoredPaymentData({ checkout, mode }),
   }
 }

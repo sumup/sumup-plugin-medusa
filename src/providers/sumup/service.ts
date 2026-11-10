@@ -26,7 +26,7 @@ import {
   PaymentActions,
   PaymentSessionStatus,
 } from "@medusajs/framework/utils"
-import type { CheckoutUpdateRequest } from "@sumup/sdk"
+import type { CheckoutSuccess, CheckoutUpdateRequest } from "@sumup/sdk"
 
 import { SumUpApiClient } from "./client"
 import type {
@@ -38,6 +38,7 @@ import type {
 import {
   createCheckoutPayload,
   createCheckoutUpdatePayload,
+  getMedusaSessionId,
   getTransactionId,
   mapCheckoutToSessionStatus,
   mapCheckoutToWebhookAction,
@@ -194,7 +195,10 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
     const checkout = await this.retrieveProviderCheckout(data)
     const status = mapCheckoutToSessionStatus(checkout)
 
-    if (status === PaymentSessionStatus.CAPTURED) {
+    if (
+      status === PaymentSessionStatus.CAPTURED ||
+      status === PaymentSessionStatus.CANCELED
+    ) {
       return {
         data: mergeCheckoutIntoPaymentData(data, checkout) as unknown as Record<
           string,
@@ -236,7 +240,15 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
   async updatePayment(input: UpdatePaymentInput): Promise<UpdatePaymentOutput> {
     const checkout = await this.retrieveProviderCheckout(input.data)
     const status = mapCheckoutToSessionStatus(checkout)
-    const currentMode = resolveCheckoutMode(this.options_, input.data)
+    const clientData = input.data?.client as Record<string, unknown> | undefined
+    const currentMode = resolveCheckoutMode(this.options_, {
+      ...input.data,
+      checkout_mode:
+        clientData?.checkout_mode ??
+        clientData?.checkoutMode ??
+        input.data?.checkout_mode ??
+        input.data?.checkoutMode,
+    })
     const paymentData = input.data as SumUpPaymentData | undefined
     const existingMode =
       checkout.hosted_checkout_url || paymentData?.hosted_checkout_url
@@ -262,14 +274,6 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
       checkout.description !== requestedUpdatePayload.description
     ) {
       updatePayload.description = requestedUpdatePayload.description
-    }
-
-    if (
-      requestedUpdatePayload.checkout_reference !== undefined &&
-      checkout.checkout_reference !== requestedUpdatePayload.checkout_reference
-    ) {
-      updatePayload.checkout_reference =
-        requestedUpdatePayload.checkout_reference
     }
 
     if (
@@ -324,18 +328,47 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
       )
     }
 
-    await this.client_.deactivateCheckout(checkout.id)
-
-    const mode = resolveCheckoutMode(this.options_, input.data)
+    const mode = currentMode
     const replacement = await this.client_.createCheckout(
       createCheckoutPayload({
         amount: input.amount,
         currencyCode: input.currency_code,
-        data: input.data,
+        data: {
+          ...input.data,
+          checkout_mode: mode,
+          // The original reference retains the session link for older stored data.
+          session_id: getMedusaSessionId(checkout.checkout_reference),
+        },
         options: this.options_,
       }),
       input.context?.idempotency_key,
     )
+
+    if (!replacement.id) {
+      throw new MedusaError(
+        MedusaError.Types.UNEXPECTED_STATE,
+        "Replacement SumUp checkout is missing its id.",
+      )
+    }
+
+    try {
+      if (status !== PaymentSessionStatus.CANCELED) {
+        await this.client_.deactivateCheckout(checkout.id)
+      }
+    } catch (error) {
+      try {
+        await this.client_.deactivateCheckout(replacement.id)
+      } catch {
+        throw this.buildProviderError(
+          "Failed to deactivate the original and replacement SumUp checkouts; reconcile both before retrying.",
+          error,
+        )
+      }
+      throw this.buildProviderError(
+        "Failed to deactivate the original SumUp checkout; replacement was canceled.",
+        error,
+      )
+    }
 
     return {
       status: PaymentSessionStatus.PENDING,
@@ -351,11 +384,26 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
   ): Promise<WebhookActionResult> {
     const data = payload.data as SumUpWebhookBody
 
-    if (data?.event_type !== "CHECKOUT_STATUS_CHANGED" || !data.id) {
+    if (
+      data?.event_type !== "CHECKOUT_STATUS_CHANGED" ||
+      typeof data.id !== "string" ||
+      !data.id
+    ) {
       return { action: PaymentActions.NOT_SUPPORTED }
     }
 
     const checkout = await this.client_.retrieveCheckout(data.id)
+    const sessionId = getMedusaSessionId(checkout.checkout_reference)
+    if (
+      checkout.id !== data.id ||
+      checkout.merchant_code !== this.options_.merchantCode ||
+      !sessionId ||
+      typeof checkout.amount !== "number" ||
+      !Number.isFinite(checkout.amount) ||
+      checkout.amount <= 0
+    ) {
+      return { action: PaymentActions.NOT_SUPPORTED }
+    }
     const action = mapCheckoutToWebhookAction(checkout)
 
     if (action === PaymentActions.NOT_SUPPORTED) {
@@ -365,8 +413,8 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
     return {
       action,
       data: {
-        session_id: checkout.checkout_reference ?? "",
-        amount: checkout.amount ?? 0,
+        session_id: sessionId,
+        amount: checkout.amount,
       },
     }
   }
@@ -382,9 +430,26 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
     }
 
     try {
-      return await this.client_.retrieveCheckout(checkoutId)
+      const checkout = await this.client_.retrieveCheckout(checkoutId)
+      this.assertCheckoutIdentity(checkout, checkoutId)
+      return checkout
     } catch (error) {
       throw this.buildProviderError("Failed to retrieve SumUp checkout.", error)
+    }
+  }
+
+  private assertCheckoutIdentity(
+    checkout: CheckoutSuccess,
+    checkoutId: string,
+  ): void {
+    if (
+      checkout.id !== checkoutId ||
+      checkout.merchant_code !== this.options_.merchantCode
+    ) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "SumUp checkout does not match the requested checkout and configured merchant.",
+      )
     }
   }
 

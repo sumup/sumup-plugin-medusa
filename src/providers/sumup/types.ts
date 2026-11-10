@@ -44,7 +44,6 @@ export type SumUpPaymentData = {
   merchant_code: string
   currency?: string
   amount?: number
-  raw_checkout?: Checkout | CheckoutSuccess
 }
 
 export type SumUpWebhookBody = {

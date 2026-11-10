@@ -3,10 +3,14 @@ import { describe, expect, it } from "vitest"
 
 import {
   createCheckoutPayload,
+  createCheckoutReference,
   createCheckoutUpdatePayload,
+  getMedusaSessionId,
   mapCheckoutToSessionStatus,
   mapCheckoutToWebhookAction,
+  mergeCheckoutIntoPaymentData,
   toMajorUnitNumber,
+  toStoredPaymentData,
 } from "../utils"
 
 describe("SumUp provider utilities", () => {
@@ -26,7 +30,7 @@ describe("SumUp provider utilities", () => {
     })
 
     expect(payload).toMatchObject({
-      checkout_reference: "payses_123",
+      checkout_reference: expect.stringMatching(/^payses_123:[a-f0-9]{16}$/),
       amount: 12.5,
       currency: "EUR",
       merchant_code: "MC123",
@@ -51,7 +55,7 @@ describe("SumUp provider utilities", () => {
     })
 
     expect(payload.hosted_checkout).toBeUndefined()
-    expect(payload.checkout_reference).toBe("payses_widget")
+    expect(payload.checkout_reference).toMatch(/^payses_widget:[a-f0-9]{16}$/)
     expect(payload.amount).toBe(19.99)
   })
 
@@ -69,8 +73,50 @@ describe("SumUp provider utilities", () => {
       amount: 15.25,
       currency: "USD",
       description: "Updated order",
-      checkout_reference: "payses_updated",
     })
+  })
+
+  it("reserves the reference for Medusa and generates unique attempts within 64 characters", () => {
+    const data = {
+      session_id: `payses_${"a".repeat(40)}`,
+      checkout_reference: "custom-order",
+    }
+    const first = createCheckoutReference(data)
+    const second = createCheckoutReference(data)
+    expect(first).not.toBe(second)
+    expect(first).toHaveLength(64)
+    expect(getMedusaSessionId(first)).toBe(data.session_id)
+    expect(getMedusaSessionId("payses_legacy")).toBe("payses_legacy")
+  })
+
+  it.each([undefined, "", "order_123", `payses_${"a".repeat(41)}`])(
+    "rejects missing or invalid Medusa session ids %s",
+    (session_id) => {
+      expect(() =>
+        createCheckoutReference({
+          session_id,
+          checkout_reference: "payses_custom",
+        }),
+      ).toThrow("session_id")
+    },
+  )
+
+  it("does not expose provider response tokens or retain legacy raw checkout data", () => {
+    const checkout = {
+      id: "checkout_1",
+      checkout_reference: "payses_123",
+      merchant_code: "MC123",
+      payment_instrument: { token: "saved_instrument_token" },
+      mandate: { type: "recurring" },
+    }
+    const stored = toStoredPaymentData({ checkout, mode: "hosted" })
+    expect(JSON.stringify(stored)).not.toContain("saved_instrument_token")
+    const merged = mergeCheckoutIntoPaymentData(
+      { raw_checkout: checkout, client: { checkout_mode: "widget" } },
+      checkout,
+    )
+    expect(merged).not.toHaveProperty("raw_checkout")
+    expect(merged).toHaveProperty("client.checkout_mode", "widget")
   })
 
   it("normalizes Medusa BigNumber-like amounts", () => {
