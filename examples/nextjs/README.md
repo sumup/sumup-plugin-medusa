@@ -76,15 +76,16 @@ export function SumUpPaymentWidget({
     }
 
     const mount = () => {
-      widgetRef.current = window.SumUpCard?.mount({
-        id: "sumup-card",
-        checkoutId,
-        onResponse: async (type: string) => {
-          if (type === "success") {
-            await onVerified()
-          }
-        },
-      }) ?? null
+      widgetRef.current =
+        window.SumUpCard?.mount({
+          id: "sumup-card",
+          checkoutId,
+          onResponse: async (type: string) => {
+            if (type === "success") {
+              await onVerified()
+            }
+          },
+        }) ?? null
     }
 
     if (window.SumUpCard) {
