@@ -26,8 +26,8 @@ jobs:
           cache-dependency-path: yarn.lock
           registry-url: "https://registry.npmjs.org"
 
-      - name: Enable Corepack
-        run: corepack enable
+      - name: Install pinned Yarn
+        run: npm install --global yarn@1.22.22
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
