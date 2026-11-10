@@ -73,6 +73,10 @@ SumUp cannot reach from the internet. To test webhooks, expose the backend with
 a tunnel (e.g. `ngrok http 9000`) and set `MEDUSA_BACKEND_URL` to the public URL
 in `.env`.
 
+## PostgreSQL 18 Upgrade
+
+This example now uses PostgreSQL 18, with its volume mounted at `/var/lib/postgresql`. An existing PostgreSQL 16 data directory cannot be reused directly. For disposable demo data, run `docker compose down -v` before rebuilding; this deletes the database and shared demo configuration. Back up any data you need and migrate it with PostgreSQL's supported upgrade or dump/restore tools instead of resetting it.
+
 ## Reset
 
 ```bash

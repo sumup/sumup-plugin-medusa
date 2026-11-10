@@ -24,7 +24,7 @@ The plugin never handles raw card data directly. SumUp credentials remain on the
 
 ## Compatibility
 
-- Medusa v2.15.5 or later (tested with v2.22.0).
+- Medusa v2.22.6 or later (tested with v2.22.6).
 - Node.js 22.22.0 or later.
 - SumUp online checkout flows
 
@@ -75,16 +75,16 @@ After the application starts, enable the provider for the relevant region in Med
 
 ## Configuration Options
 
-| Option | Required | Description |
-| --- | --- | --- |
-| `apiKey` | Yes | SumUp API key or access token. Keep it server-side. |
-| `merchantCode` | Yes | SumUp merchant code that receives the payment. |
-| `checkoutMode` | No | Default checkout mode: `hosted` or `widget`. Defaults to `hosted`. |
-| `returnUrl` | No | Backend webhook URL. For provider `id: "sumup"`, use `/hooks/payment/sumup_sumup`. |
-| `redirectUrl` | No | Storefront URL used after redirect or Strong Customer Authentication flows. |
-| `paymentDescription` | No | Default SumUp checkout description. |
-| `timeout` | No | SumUp SDK request timeout in milliseconds. |
-| `maxRetries` | No | SumUp SDK retry count. |
+| Option               | Required | Description                                                                        |
+| -------------------- | -------- | ---------------------------------------------------------------------------------- |
+| `apiKey`             | Yes      | SumUp API key or access token. Keep it server-side.                                |
+| `merchantCode`       | Yes      | SumUp merchant code that receives the payment.                                     |
+| `checkoutMode`       | No       | Default checkout mode: `hosted` or `widget`. Defaults to `hosted`.                 |
+| `returnUrl`          | No       | Backend webhook URL. For provider `id: "sumup"`, use `/hooks/payment/sumup_sumup`. |
+| `redirectUrl`        | No       | Storefront URL used after redirect or Strong Customer Authentication flows.        |
+| `paymentDescription` | No       | Default SumUp checkout description.                                                |
+| `timeout`            | No       | SumUp SDK request timeout in milliseconds.                                         |
+| `maxRetries`         | No       | SumUp SDK retry count.                                                             |
 
 You can override `checkout_mode`, `description`, `return_url`, `redirect_url`, and `checkout_reference` per payment session through provider data.
 
