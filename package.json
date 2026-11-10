@@ -67,7 +67,7 @@
     "@medusajs/framework": "2.22.6",
     "@medusajs/medusa": "2.22.6",
     "@swc/core": "^1.16.22",
-    "@types/node": "^24.19.2",
+    "@types/node": "^26.6.6",
     "@typescript/typescript6": "^6.0.2",
     "ts-node": "^10.9.2",
     "typescript": "^7.0.2",
