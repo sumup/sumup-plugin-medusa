@@ -90,3 +90,13 @@ Document user-visible changes in terms of:
 Publishing a GitHub release starts `.github/workflows/release.yaml`. npm publishing uses GitHub OIDC trusted publishing. In the npm settings for `@sumup/medusa-plugin`, configure the GitHub organization as `sumup`, the repository as `sumup-plugin-medusa`, and the workflow filename as `release.yaml`. Allow direct publishing with `npm publish`.
 
 The workflow grants `id-token: write`; no npm token secret is needed. After publishing, confirm the workflow succeeded and verify the version and tarball on npm. A GitHub release alone does not mean the package was published.
+
+## Medusa Integration Listing
+
+Medusa discovers third-party integrations from npm using package keywords, as described in its [plugin publishing guide](https://docs.medusajs.com/learn/fundamentals/plugins/create#package-keywords). Keep `medusa-v2`, `medusa-plugin-integration`, and `medusa-plugin-payment` in the published package's `keywords`. Keep `@swc/core` as a direct development dependency, as required by the same guide's package dependency section.
+
+After publishing a new version:
+
+1. Run `npm view @sumup/medusa-plugin@latest version keywords repository --registry=https://registry.npmjs.org` and confirm the version, all three listing keywords, and the repository URL. Changes on GitHub do not update an already published npm version.
+2. Check the [Medusa integrations directory](https://medusajs.com/integrations). Confirm the entry links to the SumUp-owned `@sumup/medusa-plugin` package and this repository; another SumUp payment package may have a similar name.
+3. If the package remains absent despite correct public npm metadata, contact Medusa through its [community](https://discord.com/invite/medusajs). Include the package name, published version, repository URL, and required keywords so they can investigate the directory's curation or indexing. The guide does not document a refresh schedule or guarantee a listing immediately after publication.
