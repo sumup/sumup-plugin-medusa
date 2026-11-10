@@ -546,25 +546,6 @@ describe("SumUpPaymentProviderService", () => {
     expect(client.checkouts.get("checkout_2")?.status).toBe("EXPIRED")
   })
 
-  it("reports failed replacement cleanup for reconciliation", async () => {
-    const { provider, client } = createProvider()
-    const initiated = await provider.initiatePayment({
-      amount: 20,
-      currency_code: "eur",
-      data: { session_id: "payses_cleanup" },
-    })
-    vi.spyOn(client, "deactivateCheckout").mockRejectedValue(
-      new Error("Unavailable"),
-    )
-    await expect(
-      provider.updatePayment({
-        amount: 20,
-        currency_code: "eur",
-        data: { ...initiated.data, checkout_mode: "widget" },
-      }),
-    ).rejects.toThrow("reconcile both")
-  })
-
   it("supports mode changes through the Store API client_data field", async () => {
     const { provider, client } = createProvider()
     const initiated = await provider.initiatePayment({

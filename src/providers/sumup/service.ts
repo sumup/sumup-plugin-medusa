@@ -90,10 +90,7 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
       createCheckoutPayload({
         amount: input.amount,
         currencyCode: input.currency_code,
-        data: {
-          ...input.data,
-          idempotency_key: input.context?.idempotency_key,
-        },
+        data: input.data,
         options: this.options_,
       }),
       input.context?.idempotency_key,
@@ -104,7 +101,7 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
     return {
       id: data.checkout_id,
       status: PaymentSessionStatus.PENDING,
-      data: data as unknown as Record<string, unknown>,
+      data,
     }
   }
 
@@ -116,10 +113,7 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
 
     return {
       status: mapCheckoutToSessionStatus(checkout),
-      data: mergeCheckoutIntoPaymentData(
-        input.data,
-        checkout,
-      ) as unknown as Record<string, unknown>,
+      data: mergeCheckoutIntoPaymentData(input.data, checkout),
     }
   }
 
@@ -130,10 +124,7 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
 
     return {
       status: mapCheckoutToSessionStatus(checkout),
-      data: mergeCheckoutIntoPaymentData(
-        input.data,
-        checkout,
-      ) as unknown as Record<string, unknown>,
+      data: mergeCheckoutIntoPaymentData(input.data, checkout),
     }
   }
 
@@ -152,10 +143,7 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
     }
 
     return {
-      data: mergeCheckoutIntoPaymentData(
-        input.data,
-        checkout,
-      ) as unknown as Record<string, unknown>,
+      data: mergeCheckoutIntoPaymentData(input.data, checkout),
     }
   }
 
@@ -173,10 +161,7 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
       const checkout = await this.retrieveProviderCheckout(data)
       transactionId = getTransactionId(checkout) ?? transactionId
       currency = checkout.currency
-      nextData = mergeCheckoutIntoPaymentData(
-        data,
-        checkout,
-      ) as unknown as Record<string, unknown>
+      nextData = mergeCheckoutIntoPaymentData(data, checkout)
     }
 
     if (!transactionId) {
@@ -222,20 +207,14 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
       status === PaymentSessionStatus.CANCELED
     ) {
       return {
-        data: mergeCheckoutIntoPaymentData(data, checkout) as unknown as Record<
-          string,
-          unknown
-        >,
+        data: mergeCheckoutIntoPaymentData(data, checkout),
       }
     }
 
     try {
       const deactivated = await this.client_.deactivateCheckout(checkoutId)
       return {
-        data: mergeCheckoutIntoPaymentData(
-          data,
-          deactivated,
-        ) as unknown as Record<string, unknown>,
+        data: mergeCheckoutIntoPaymentData(data, deactivated),
       }
     } catch (error) {
       throw this.buildProviderError("Failed to cancel SumUp checkout.", error)
@@ -252,28 +231,16 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
     const checkout = await this.retrieveProviderCheckout(data)
 
     return {
-      data: mergeCheckoutIntoPaymentData(data, checkout) as unknown as Record<
-        string,
-        unknown
-      >,
+      data: mergeCheckoutIntoPaymentData(data, checkout),
     }
   }
 
   async updatePayment(input: UpdatePaymentInput): Promise<UpdatePaymentOutput> {
     const checkout = await this.retrieveProviderCheckout(input.data)
     const status = mapCheckoutToSessionStatus(checkout)
-    const clientData = input.data?.client as Record<string, unknown> | undefined
-    const currentMode = resolveCheckoutMode(this.options_, {
-      ...input.data,
-      checkout_mode:
-        clientData?.checkout_mode ??
-        clientData?.checkoutMode ??
-        input.data?.checkout_mode ??
-        input.data?.checkoutMode,
-    })
-    const paymentData = input.data as SumUpPaymentData | undefined
+    const currentMode = resolveCheckoutMode(this.options_, input.data)
     const existingMode =
-      checkout.hosted_checkout_url || paymentData?.hosted_checkout_url
+      checkout.hosted_checkout_url || input.data?.hosted_checkout_url
         ? "hosted"
         : "widget"
     const requestedUpdatePayload = createCheckoutUpdatePayload({
@@ -304,10 +271,7 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
     ) {
       return {
         status,
-        data: mergeCheckoutIntoPaymentData(
-          input.data,
-          checkout,
-        ) as unknown as Record<string, unknown>,
+        data: mergeCheckoutIntoPaymentData(input.data, checkout),
       }
     }
 
@@ -322,13 +286,6 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
       status === PaymentSessionStatus.PENDING &&
       existingMode === currentMode
     ) {
-      if (!checkout.id) {
-        throw new MedusaError(
-          MedusaError.Types.UNEXPECTED_STATE,
-          "Cannot update a SumUp checkout without an existing checkout id.",
-        )
-      }
-
       const updated = await this.client_.updateCheckout(
         checkout.id,
         updatePayload,
@@ -336,28 +293,17 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
 
       return {
         status: PaymentSessionStatus.PENDING,
-        data: mergeCheckoutIntoPaymentData(
-          input.data,
-          updated,
-        ) as unknown as Record<string, unknown>,
+        data: mergeCheckoutIntoPaymentData(input.data, updated),
       }
     }
 
-    if (!checkout.id) {
-      throw new MedusaError(
-        MedusaError.Types.UNEXPECTED_STATE,
-        "Cannot replace a SumUp checkout without an existing checkout id.",
-      )
-    }
-
-    const mode = currentMode
     const replacement = await this.client_.createCheckout(
       createCheckoutPayload({
         amount: input.amount,
         currencyCode: input.currency_code,
         data: {
           ...input.data,
-          checkout_mode: mode,
+          checkout_mode: currentMode,
           // The original reference retains the session link for older stored data.
           session_id: getMedusaSessionId(checkout.checkout_reference),
         },
@@ -366,26 +312,17 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
       input.context?.idempotency_key,
     )
 
-    if (!replacement.id) {
-      throw new MedusaError(
-        MedusaError.Types.UNEXPECTED_STATE,
-        "Replacement SumUp checkout is missing its id.",
-      )
-    }
+    const replacementData = toStoredPaymentData({
+      checkout: replacement,
+      mode: currentMode,
+    })
 
     try {
       if (status !== PaymentSessionStatus.CANCELED) {
         await this.client_.deactivateCheckout(checkout.id)
       }
     } catch (error) {
-      try {
-        await this.client_.deactivateCheckout(replacement.id)
-      } catch {
-        throw this.buildProviderError(
-          "Failed to deactivate the original and replacement SumUp checkouts; reconcile both before retrying.",
-          error,
-        )
-      }
+      await this.client_.deactivateCheckout(replacementData.checkout_id)
       throw this.buildProviderError(
         "Failed to deactivate the original SumUp checkout; replacement was canceled.",
         error,
@@ -394,10 +331,7 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
 
     return {
       status: PaymentSessionStatus.PENDING,
-      data: toStoredPaymentData({
-        checkout: replacement,
-        mode,
-      }) as unknown as Record<string, unknown>,
+      data: replacementData,
     }
   }
 
@@ -463,7 +397,7 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
   private assertCheckoutIdentity(
     checkout: CheckoutSuccess,
     checkoutId: string,
-  ): void {
+  ): asserts checkout is CheckoutSuccess & { id: string } {
     if (
       checkout.id !== checkoutId ||
       checkout.merchant_code !== this.options_.merchantCode
@@ -481,18 +415,9 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
   ): void {
     const expectedAmount = data?.amount
     const expectedCurrency = data?.currency
-    // Older provider records can lack these values. Check every expectation
-    // that is available before a fresh response can overwrite the stored data.
     if (
-      (expectedAmount !== undefined &&
-        (typeof expectedAmount !== "number" ||
-          !Number.isFinite(expectedAmount) ||
-          expectedAmount <= 0 ||
-          checkout.amount !== expectedAmount)) ||
-      (expectedCurrency !== undefined &&
-        (typeof expectedCurrency !== "string" ||
-          expectedCurrency.length === 0 ||
-          checkout.currency?.toUpperCase() !== expectedCurrency.toUpperCase()))
+      (expectedAmount !== undefined && checkout.amount !== expectedAmount) ||
+      (expectedCurrency !== undefined && checkout.currency !== expectedCurrency)
     ) {
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,

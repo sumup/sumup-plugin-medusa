@@ -35,40 +35,8 @@ const SUPPORTED_CURRENCIES = new Set([
 ])
 
 export function toMajorUnitNumber(amount: BigNumberInput): number {
-  if (typeof amount === "number") {
-    return amount
-  }
-
-  if (typeof amount === "string") {
-    return Number(amount)
-  }
-
-  const value = amount as {
-    numeric?: number
-    value?: string | number
-    raw?: { value?: string | number }
-    bigNumber?: { toNumber?: () => number }
-    toNumber?: () => number
-  }
-
-  if (typeof value.numeric === "number") {
-    return value.numeric
-  }
-
-  if (value.value !== undefined) {
-    return Number(value.value)
-  }
-
-  if (value.raw?.value !== undefined) {
-    return Number(value.raw.value)
-  }
-
-  if (typeof value.bigNumber?.toNumber === "function") {
-    return value.bigNumber.toNumber()
-  }
-
-  if (typeof value.toNumber === "function") {
-    return value.toNumber()
+  if (typeof amount === "object" && "value" in amount) {
+    return Number(amount.value)
   }
 
   return Number(amount)
@@ -116,7 +84,13 @@ export function resolveCheckoutMode(
   options: SumUpProviderOptions,
   data?: Record<string, unknown>,
 ): SumUpCheckoutMode {
-  const mode = data?.checkout_mode ?? data?.checkoutMode ?? options.checkoutMode
+  const client = data?.client as Record<string, unknown> | undefined
+  const mode =
+    client?.checkout_mode ??
+    client?.checkoutMode ??
+    data?.checkout_mode ??
+    data?.checkoutMode ??
+    options.checkoutMode
 
   if (mode === "hosted" || mode === "widget") {
     return mode
@@ -279,7 +253,7 @@ export function mergeCheckoutIntoPaymentData(
   delete safeCurrent.raw_checkout
 
   return {
-    ...(safeCurrent as SumUpPaymentData),
+    ...safeCurrent,
     ...toStoredPaymentData({ checkout, mode }),
   }
 }

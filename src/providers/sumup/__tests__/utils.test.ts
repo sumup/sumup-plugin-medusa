@@ -1,4 +1,8 @@
-import { PaymentActions, PaymentSessionStatus } from "@medusajs/framework/utils"
+import {
+  BigNumber,
+  PaymentActions,
+  PaymentSessionStatus,
+} from "@medusajs/framework/utils"
 import { describe, expect, it } from "vitest"
 
 import {
@@ -120,9 +124,11 @@ describe("SumUp provider utilities", () => {
     expect(merged).toHaveProperty("client.checkout_mode", "widget")
   })
 
-  it("normalizes Medusa BigNumber-like amounts", () => {
-    expect(toMajorUnitNumber({ numeric: 42 } as never)).toBe(42)
-    expect(toMajorUnitNumber({ raw: { value: "13.37" } } as never)).toBe(13.37)
+  it("normalizes supported Medusa amount types", () => {
+    expect(toMajorUnitNumber(42)).toBe(42)
+    expect(toMajorUnitNumber("13.37")).toBe(13.37)
+    expect(toMajorUnitNumber({ value: "13.37" })).toBe(13.37)
+    expect(toMajorUnitNumber(new BigNumber(42))).toBe(42)
   })
 
   it.each([
@@ -134,8 +140,8 @@ describe("SumUp provider utilities", () => {
     [12.34, "EUR", 1234],
     [0.29, "eur", 29],
     ["19.99", "GBP", 1999],
-    [{ numeric: 5.25 }, "USD", 525],
-    [{ raw: { value: "3.75" } }, "CHF", 375],
+    [new BigNumber(5.25), "USD", 525],
+    [{ value: "3.75" }, "CHF", 375],
     [500, "CLP", 500],
     [500, "COP", 500],
     [500, "HUF", 500],

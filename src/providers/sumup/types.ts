@@ -34,7 +34,7 @@ export type SumUpClient = {
   refundTransaction(transactionId: string, amount?: number): Promise<void>
 }
 
-export type SumUpPaymentData = {
+export type SumUpPaymentData = Record<string, unknown> & {
   id: string
   checkout_id: string
   checkout_reference: string
