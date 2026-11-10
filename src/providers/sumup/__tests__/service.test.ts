@@ -5,7 +5,7 @@ import type {
   CheckoutSuccess,
   CheckoutUpdateRequest,
 } from "@sumup/sdk"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import SumUpPaymentProviderService from "../service"
 import type { SumUpClient } from "../types"
@@ -18,6 +18,14 @@ class FakeSumUpClient implements SumUpClient {
   deactivated: string[] = []
 
   async createCheckout(payload: CheckoutCreateRequest): Promise<Checkout> {
+    if (
+      this.createdPayloads.some(
+        (previous) =>
+          previous.checkout_reference === payload.checkout_reference,
+      )
+    ) {
+      throw new Error("DUPLICATED_CHECKOUT")
+    }
     this.createdPayloads.push(payload)
 
     const checkout = {
@@ -76,6 +84,8 @@ class FakeSumUpClient implements SumUpClient {
       throw new Error(`Missing checkout ${checkoutId}`)
     }
 
+    if (checkout.status === "EXPIRED") throw new Error("Already deactivated")
+
     const deactivated = {
       ...checkout,
       status: "EXPIRED" as const,
@@ -129,7 +139,7 @@ describe("SumUpPaymentProviderService", () => {
       "https://checkout.sumup.com/pay/test",
     )
     expect(client.createdPayloads[0]).toMatchObject({
-      checkout_reference: "payses_hosted",
+      checkout_reference: expect.stringMatching(/^payses_hosted:[a-f0-9]{16}$/),
       hosted_checkout: { enabled: true },
       merchant_code: "MC123",
     })
@@ -144,7 +154,7 @@ describe("SumUpPaymentProviderService", () => {
     })
 
     client.checkouts.set("checkout_1", {
-      ...(initiated.data?.raw_checkout as CheckoutSuccess),
+      ...client.checkouts.get("checkout_1"),
       id: "checkout_1",
       checkout_reference: "payses_paid",
       status: "PAID",
@@ -166,18 +176,106 @@ describe("SumUpPaymentProviderService", () => {
     expect(result.data?.transaction_code).toBe("T123")
   })
 
+  it.each(["authorizePayment", "capturePayment"] as const)(
+    "%s rejects a paid checkout with an unexpected amount or currency",
+    async (method) => {
+      const { provider, client } = createProvider()
+      const initiated = await provider.initiatePayment({
+        amount: 20,
+        currency_code: "eur",
+        data: { session_id: "payses_integrity" },
+      })
+      const original = client.checkouts.get("checkout_1")
+      for (const changed of [
+        { amount: 1 },
+        { currency: "USD" as const },
+        { amount: undefined },
+        { currency: undefined },
+      ]) {
+        client.checkouts.set("checkout_1", {
+          ...original,
+          ...changed,
+          status: "PAID",
+        })
+        await expect(
+          provider[method]({ data: initiated.data }),
+        ).rejects.toThrow("expected amount and currency")
+      }
+      expect(initiated.data?.amount).toBe(20)
+      expect(initiated.data?.currency).toBe("EUR")
+    },
+  )
+
+  it.each(["authorizePayment", "capturePayment"] as const)(
+    "%s accepts the expected paid checkout and legacy data without expectations",
+    async (method) => {
+      const { provider, client } = createProvider()
+      const initiated = await provider.initiatePayment({
+        amount: 20,
+        currency_code: "eur",
+        data: { session_id: "payses_integrity_ok" },
+      })
+      client.checkouts.set("checkout_1", {
+        ...client.checkouts.get("checkout_1"),
+        status: "PAID",
+      })
+      await expect(
+        provider[method]({ data: initiated.data }),
+      ).resolves.toHaveProperty("data.amount", 20)
+      await expect(
+        provider[method]({ data: { checkout_id: "checkout_1" } }),
+      ).resolves.toHaveProperty("data.amount", 20)
+    },
+  )
+
+  it("allows updatePayment to reconcile changed remote amounts", async () => {
+    const { provider, client } = createProvider()
+    const initiated = await provider.initiatePayment({
+      amount: 20,
+      currency_code: "eur",
+      data: { session_id: "payses_reconcile" },
+    })
+    client.checkouts.set("checkout_1", {
+      ...client.checkouts.get("checkout_1"),
+      amount: 1,
+    })
+    await expect(
+      provider.updatePayment({
+        amount: 20,
+        currency_code: "eur",
+        data: initiated.data,
+      }),
+    ).resolves.toHaveProperty("data.amount", 20)
+    expect(client.updatedPayloads[0].payload).toEqual({ amount: 20 })
+  })
+
+  it("sanitizes legacy raw checkout data in refund and no-id cancellation outputs", async () => {
+    const { provider } = createProvider()
+    const raw_checkout = { payment_instrument: { token: "fake_legacy_token" } }
+    const refunded = await provider.refundPayment({
+      amount: 5,
+      data: { transaction_id: "txn_1", currency: "EUR", raw_checkout },
+    })
+    const canceled = await provider.cancelPayment({
+      data: { raw_checkout, other: "preserved" },
+    })
+    expect(refunded.data).not.toHaveProperty("raw_checkout")
+    expect(canceled.data).toEqual({ other: "preserved" })
+  })
+
   it("refunds the successful transaction", async () => {
     const { provider, client } = createProvider()
 
     await provider.refundPayment({
-      amount: 5,
+      amount: 5.25,
       data: {
         checkout_id: "checkout_1",
+        currency: "EUR",
         transaction_id: "txn_1",
       },
     })
 
-    expect(client.refunds).toEqual([{ transactionId: "txn_1", amount: 5 }])
+    expect(client.refunds).toEqual([{ transactionId: "txn_1", amount: 525 }])
   })
 
   it("looks up a transaction before refunding when stored data is incomplete", async () => {
@@ -206,7 +304,62 @@ describe("SumUpPaymentProviderService", () => {
       },
     })
 
-    expect(client.refunds).toEqual([{ transactionId: "txn_lookup", amount: 3 }])
+    expect(client.refunds).toEqual([
+      { transactionId: "txn_lookup", amount: 300 },
+    ])
+  })
+
+  it.each([0, -1, NaN, Infinity, 0.001])(
+    "does not submit invalid refund amount %s",
+    async (amount) => {
+      const { provider, client } = createProvider()
+      await expect(
+        provider.refundPayment({
+          amount,
+          data: { transaction_id: "txn_1", currency: "EUR" },
+        }),
+      ).rejects.toThrow("Refund amount")
+      expect(client.refunds).toEqual([])
+    },
+  )
+
+  it("retrieves the currency when only the transaction id is stored", async () => {
+    const { provider, client } = createProvider()
+    client.checkouts.set("checkout_1", {
+      id: "checkout_1",
+      checkout_reference: "payses_currency",
+      merchant_code: "MC123",
+      currency: "CLP",
+      status: "PAID",
+    })
+    const result = await provider.refundPayment({
+      amount: 500,
+      data: { checkout_id: "checkout_1", transaction_id: "txn_1" },
+    })
+    expect(result.data?.transaction_id).toBe("txn_1")
+
+    await provider.refundPayment({ amount: 100, data: result.data })
+    expect(client.refunds).toEqual([
+      { transactionId: "txn_1", amount: 500 },
+      { transactionId: "txn_1", amount: 100 },
+    ])
+  })
+
+  it("does not submit a refund when the checkout currency is missing", async () => {
+    const { provider, client } = createProvider()
+    client.checkouts.set("checkout_1", {
+      id: "checkout_1",
+      checkout_reference: "payses_currency_missing",
+      merchant_code: "MC123",
+      status: "PAID",
+    })
+    await expect(
+      provider.refundPayment({
+        amount: 5,
+        data: { checkout_id: "checkout_1", transaction_id: "txn_1" },
+      }),
+    ).rejects.toThrow("currency")
+    expect(client.refunds).toEqual([])
   })
 
   it("maps SumUp checkout webhooks after verifying through the API", async () => {
@@ -258,16 +411,14 @@ describe("SumUpPaymentProviderService", () => {
       transactions: [],
     })
 
-    const result = await provider.cancelPayment({
+    await provider.cancelPayment({
       data: {
         checkout_id: "checkout_1",
       },
     })
 
     expect(client.deactivated).toEqual(["checkout_1"])
-    expect(result.data?.raw_checkout).toMatchObject({
-      status: "EXPIRED",
-    })
+    expect(client.checkouts.get("checkout_1")?.status).toBe("EXPIRED")
   })
 
   it("updates a pending checkout in place when only mutable fields change", async () => {
@@ -353,6 +504,206 @@ describe("SumUpPaymentProviderService", () => {
     expect(client.createdPayloads).toHaveLength(2)
     expect(client.updatedPayloads).toEqual([])
   })
+
+  it("preserves the original checkout if replacement creation fails", async () => {
+    const { provider, client } = createProvider()
+    const initiated = await provider.initiatePayment({
+      amount: 20,
+      currency_code: "eur",
+      data: { session_id: "payses_failure" },
+    })
+    vi.spyOn(client, "createCheckout").mockRejectedValueOnce(
+      new Error("Unavailable"),
+    )
+    await expect(
+      provider.updatePayment({
+        amount: 20,
+        currency_code: "eur",
+        data: { ...initiated.data, checkout_mode: "widget" },
+      }),
+    ).rejects.toThrow("Unavailable")
+    expect(client.deactivated).toEqual([])
+    expect(client.checkouts.get("checkout_1")?.status).toBe("PENDING")
+  })
+
+  it("cancels the replacement if the original becomes paid during replacement", async () => {
+    const { provider, client } = createProvider()
+    const initiated = await provider.initiatePayment({
+      amount: 20,
+      currency_code: "eur",
+      data: { session_id: "payses_race" },
+    })
+    vi.spyOn(client, "deactivateCheckout").mockRejectedValueOnce(
+      new Error("Already paid"),
+    )
+    await expect(
+      provider.updatePayment({
+        amount: 20,
+        currency_code: "eur",
+        data: { ...initiated.data, checkout_mode: "widget" },
+      }),
+    ).rejects.toThrow("replacement was canceled")
+    expect(client.checkouts.get("checkout_2")?.status).toBe("EXPIRED")
+  })
+
+  it("supports mode changes through the Store API client_data field", async () => {
+    const { provider, client } = createProvider()
+    const initiated = await provider.initiatePayment({
+      amount: 20,
+      currency_code: "eur",
+      data: { session_id: "payses_client" },
+    })
+    const result = await provider.updatePayment({
+      amount: 20,
+      currency_code: "eur",
+      data: {
+        ...initiated.data,
+        client: {
+          checkout_mode: "widget",
+          merchant_code: "OTHER",
+          checkout_id: "OTHER",
+          description: "untrusted",
+        },
+      },
+    })
+    expect(result.data?.checkout_mode).toBe("widget")
+    expect(client.createdPayloads[1].merchant_code).toBe("MC123")
+    expect(client.createdPayloads[1].description).toBe("Medusa order payment")
+    expect(client.createdPayloads[1].checkout_reference).not.toBe(
+      client.createdPayloads[0].checkout_reference,
+    )
+    client.checkouts.set("checkout_2", {
+      ...client.checkouts.get("checkout_2"),
+      status: "PAID",
+    })
+    await expect(
+      provider.getWebhookActionAndData({
+        data: { event_type: "CHECKOUT_STATUS_CHANGED", id: "checkout_2" },
+        rawData: "",
+        headers: {},
+      }),
+    ).resolves.toEqual({
+      action: PaymentActions.SUCCESSFUL,
+      data: { session_id: "payses_client", amount: 20 },
+    })
+  })
+
+  it("makes repeated cancellation and deletion idempotent", async () => {
+    const { provider, client } = createProvider()
+    const initiated = await provider.initiatePayment({
+      amount: 20,
+      currency_code: "eur",
+      data: { session_id: "payses_cancel_retry" },
+    })
+    await provider.cancelPayment({ data: initiated.data })
+    await provider.deletePayment({ data: initiated.data })
+    expect(client.deactivated).toEqual(["checkout_1"])
+  })
+
+  it.each(["OTHER", undefined])(
+    "rejects checkout merchant %s before authorization or webhook processing",
+    async (merchant_code) => {
+      const { provider, client } = createProvider()
+      client.checkouts.set("checkout_1", {
+        id: "checkout_1",
+        checkout_reference: "payses_merchant",
+        merchant_code,
+        amount: 20,
+        status: "PAID",
+      })
+      await expect(
+        provider.authorizePayment({ data: { checkout_id: "checkout_1" } }),
+      ).rejects.toThrow("merchant")
+      await expect(
+        provider.getWebhookActionAndData({
+          data: { event_type: "CHECKOUT_STATUS_CHANGED", id: "checkout_1" },
+          rawData: "",
+          headers: {},
+        }),
+      ).resolves.toEqual({ action: PaymentActions.NOT_SUPPORTED })
+    },
+  )
+
+  it.each(["order_custom", "", undefined])(
+    "ignores callbacks without a correlated reference %s",
+    async (checkout_reference) => {
+      const { provider, client } = createProvider()
+      client.checkouts.set("checkout_1", {
+        id: "checkout_1",
+        checkout_reference,
+        merchant_code: "MC123",
+        amount: 20,
+        status: "PAID",
+      })
+      await expect(
+        provider.getWebhookActionAndData({
+          data: { event_type: "CHECKOUT_STATUS_CHANGED", id: "checkout_1" },
+          rawData: "",
+          headers: {},
+        }),
+      ).resolves.toEqual({ action: PaymentActions.NOT_SUPPORTED })
+    },
+  )
+
+  it("replaces an expired checkout without trying to deactivate it again", async () => {
+    const { provider, client } = createProvider()
+    const initiated = await provider.initiatePayment({
+      amount: 20,
+      currency_code: "eur",
+      data: { session_id: "payses_expired" },
+    })
+    await client.deactivateCheckout("checkout_1")
+    const result = await provider.updatePayment({
+      amount: 25,
+      currency_code: "eur",
+      data: initiated.data,
+    })
+    expect(result.data?.checkout_id).toBe("checkout_2")
+    expect(client.deactivated).toEqual(["checkout_1"])
+  })
+
+  it("rejects mode changes after payment without creating another checkout", async () => {
+    const { provider, client } = createProvider()
+    const initiated = await provider.initiatePayment({
+      amount: 20,
+      currency_code: "eur",
+      data: { session_id: "payses_paid_update" },
+    })
+    client.checkouts.set("checkout_1", {
+      ...client.checkouts.get("checkout_1"),
+      status: "PAID",
+    })
+    await expect(
+      provider.updatePayment({
+        amount: 20,
+        currency_code: "eur",
+        data: { ...initiated.data, client: { checkout_mode: "widget" } },
+      }),
+    ).rejects.toThrow("paid")
+    expect(client.createdPayloads).toHaveLength(1)
+    expect(client.deactivated).toEqual([])
+  })
+
+  it.each([0, NaN, Infinity, undefined])(
+    "ignores callbacks with invalid amount %s",
+    async (amount) => {
+      const { provider, client } = createProvider()
+      client.checkouts.set("checkout_1", {
+        id: "checkout_1",
+        checkout_reference: "payses_amount",
+        merchant_code: "MC123",
+        amount,
+        status: "PAID",
+      })
+      await expect(
+        provider.getWebhookActionAndData({
+          data: { event_type: "CHECKOUT_STATUS_CHANGED", id: "checkout_1" },
+          rawData: "",
+          headers: {},
+        }),
+      ).resolves.toEqual({ action: PaymentActions.NOT_SUPPORTED })
+    },
+  )
 
   it("ignores unsupported webhook events", async () => {
     const { provider } = createProvider()

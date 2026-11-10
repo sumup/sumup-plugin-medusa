@@ -75,18 +75,32 @@ After the application starts, enable the provider for the relevant region in Med
 
 ## Configuration Options
 
-| Option               | Required | Description                                                                        |
-| -------------------- | -------- | ---------------------------------------------------------------------------------- |
-| `apiKey`             | Yes      | SumUp API key or access token. Keep it server-side.                                |
-| `merchantCode`       | Yes      | SumUp merchant code that receives the payment.                                     |
-| `checkoutMode`       | No       | Default checkout mode: `hosted` or `widget`. Defaults to `hosted`.                 |
-| `returnUrl`          | No       | Backend webhook URL. For provider `id: "sumup"`, use `/hooks/payment/sumup_sumup`. |
-| `redirectUrl`        | No       | Storefront URL used after redirect or Strong Customer Authentication flows.        |
-| `paymentDescription` | No       | Default SumUp checkout description.                                                |
-| `timeout`            | No       | SumUp SDK request timeout in milliseconds.                                         |
-| `maxRetries`         | No       | SumUp SDK retry count.                                                             |
+| Option               | Required | Description                                                                                                                    |
+| -------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `apiKey`             | Yes      | SumUp API key or access token. Keep it server-side.                                                                            |
+| `merchantCode`       | Yes      | SumUp merchant code that receives the payment.                                                                                 |
+| `checkoutMode`       | No       | Default checkout mode: `hosted` or `widget`. Defaults to `hosted`.                                                             |
+| `returnUrl`          | No       | Backend webhook URL. For provider `id: "sumup"`, use `/hooks/payment/sumup_sumup`.                                             |
+| `redirectUrl`        | No       | Storefront URL used after redirect or Strong Customer Authentication flows.                                                    |
+| `paymentDescription` | No       | Default SumUp checkout description.                                                                                            |
+| `timeout`            | No       | SumUp SDK request timeout in milliseconds.                                                                                     |
+| `maxRetries`         | No       | SumUp SDK retry count. Refund requests always disable automatic retries to avoid duplicate refunds after an ambiguous failure. |
 
-You can override `checkout_mode`, `description`, `return_url`, `redirect_url`, and `checkout_reference` per payment session through provider data.
+Backend integrations can set `checkout_mode`, `description`, `return_url`, and `redirect_url` in provider data when creating a session. The plugin reserves `checkout_reference` for Medusa session routing; custom references are ignored.
+
+Since Medusa v2.22.1, storefront updates use `client_data`, which Medusa passes to the provider as `data.client`. To switch between hosted checkout and the widget:
+
+```ts
+await sdk.store.payment.updatePaymentSession(
+  paymentCollectionId,
+  paymentSessionId,
+  {
+    client_data: { checkout_mode: "widget" },
+  },
+)
+```
+
+Only the checkout mode is read from client data. Amounts, currency, merchant, callback URLs, and checkout identifiers remain controlled by the backend. Use the updated payment session returned by Medusa: switching modes creates a new checkout and invalidates the previous checkout URL or widget ID.
 
 ## Hosted Checkout
 
@@ -102,14 +116,14 @@ With `checkoutMode: "widget"`, the plugin creates a SumUp checkout without Hoste
 - Mounting the widget with the checkout ID.
 - Asking the backend to re-check the payment state after widget success.
 
-Minimal storefront snippets are available in [examples/nextjs/README.md](/Users/matousdzivjak/code/github.com/sumup/sumup-plugin-medusa/examples/nextjs/README.md).
+Minimal storefront snippets are available in [examples/nextjs/README.md](./examples/nextjs/README.md).
 
 ## Webhooks
 
 Medusa provides a built-in webhook listener route for payment providers at:
 
 ```text
-/hooks/payment/[identifier]_[provider]
+/hooks/payment/[identifier]_[id]
 ```
 
 For this plugin, with service identifier `sumup` and provider `id: "sumup"`, the webhook URL is:
@@ -122,10 +136,10 @@ The plugin's `getWebhookActionAndData` implementation follows Medusa's payment-w
 
 ## What the Plugin Stores
 
-The payment-session data returned by the provider includes:
+The payment-session data is visible to the storefront. The provider stores the fields below and discards the full SumUp response, including any saved payment token or mandate details:
 
 - `checkout_id`
-- `checkout_reference`
+- `checkout_reference` (reserved for session routing and unique checkout attempts)
 - `checkout_mode`
 - `hosted_checkout_url` for hosted flows
 - `transaction_id` and `transaction_code` when available
@@ -135,9 +149,9 @@ The payment-session data returned by the provider includes:
 ## Current Behavior and Limitations
 
 - `authorizePayment` checks the remote SumUp checkout status rather than performing a separate authorization step.
-- `capturePayment` does not trigger a separate capture API call. It only succeeds once the SumUp checkout is already paid.
-- If the amount, currency, description, or checkout reference changes before payment, `updatePayment` updates the existing SumUp checkout when possible. It deactivates the old checkout and creates a replacement only when the requested change cannot be patched in place, such as switching checkout modes.
-- Refunds require a successful SumUp transaction.
+- `capturePayment` does not trigger a separate capture API call. Authorization and capture require a paid checkout that matches the stored amount, currency, and configured merchant. Legacy records without stored amounts or currencies retain their previous behavior.
+- If the amount, currency, or description changes before payment, `updatePayment` updates the existing SumUp checkout when possible. Switching checkout modes creates a replacement with a unique reference, then deactivates the previous checkout. Paid checkouts cannot be changed.
+- Refunds require a successful SumUp transaction and its currency. Medusa refund amounts use major units; the plugin converts them to integer minor units for SumUp (for example, EUR 5.25 becomes 525). CLP, COP, and HUF use zero decimal places. Refunds with invalid or fractional minor-unit amounts are rejected.
 - The plugin is built for SumUp online payments, not terminal or card-present flows.
 
 ## Sandbox Checklist
@@ -151,9 +165,9 @@ The payment-session data returned by the provider includes:
 
 ## Examples
 
-- Consumer storefront snippets: [examples/nextjs/README.md](/Users/matousdzivjak/code/github.com/sumup/sumup-plugin-medusa/examples/nextjs/README.md)
-- Local end-to-end playground: [examples/docker/README.md](/Users/matousdzivjak/code/github.com/sumup/sumup-plugin-medusa/examples/docker/README.md)
+- Consumer storefront snippets: [examples/nextjs/README.md](./examples/nextjs/README.md)
+- Local end-to-end playground: [examples/docker/README.md](./examples/docker/README.md)
 
 ## Contributing
 
-Maintainer and release workflow documentation lives in [CONTRIBUTING.md](/Users/matousdzivjak/code/github.com/sumup/sumup-plugin-medusa/CONTRIBUTING.md).
+Maintainer and release workflow documentation lives in [CONTRIBUTING.md](./CONTRIBUTING.md).

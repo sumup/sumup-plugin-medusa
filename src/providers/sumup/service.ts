@@ -26,7 +26,7 @@ import {
   PaymentActions,
   PaymentSessionStatus,
 } from "@medusajs/framework/utils"
-import type { CheckoutUpdateRequest } from "@sumup/sdk"
+import type { CheckoutSuccess, CheckoutUpdateRequest } from "@sumup/sdk"
 
 import { SumUpApiClient } from "./client"
 import type {
@@ -38,12 +38,13 @@ import type {
 import {
   createCheckoutPayload,
   createCheckoutUpdatePayload,
+  getMedusaSessionId,
   getTransactionId,
   mapCheckoutToSessionStatus,
   mapCheckoutToWebhookAction,
   mergeCheckoutIntoPaymentData,
   resolveCheckoutMode,
-  toMajorUnitNumber,
+  toRefundMinorUnits,
   toStoredPaymentData,
 } from "./utils"
 
@@ -89,10 +90,7 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
       createCheckoutPayload({
         amount: input.amount,
         currencyCode: input.currency_code,
-        data: {
-          ...input.data,
-          idempotency_key: input.context?.idempotency_key,
-        },
+        data: input.data,
         options: this.options_,
       }),
       input.context?.idempotency_key,
@@ -103,14 +101,20 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
     return {
       id: data.checkout_id,
       status: PaymentSessionStatus.PENDING,
-      data: data as unknown as Record<string, unknown>,
+      data,
     }
   }
 
   async authorizePayment(
     input: AuthorizePaymentInput,
   ): Promise<AuthorizePaymentOutput> {
-    return await this.getPaymentStatus(input)
+    const checkout = await this.retrieveProviderCheckout(input.data)
+    this.assertExpectedPayment(checkout, input.data)
+
+    return {
+      status: mapCheckoutToSessionStatus(checkout),
+      data: mergeCheckoutIntoPaymentData(input.data, checkout),
+    }
   }
 
   async getPaymentStatus(
@@ -120,10 +124,7 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
 
     return {
       status: mapCheckoutToSessionStatus(checkout),
-      data: mergeCheckoutIntoPaymentData(
-        input.data,
-        checkout,
-      ) as unknown as Record<string, unknown>,
+      data: mergeCheckoutIntoPaymentData(input.data, checkout),
     }
   }
 
@@ -131,6 +132,7 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
     input: CapturePaymentInput,
   ): Promise<CapturePaymentOutput> {
     const checkout = await this.retrieveProviderCheckout(input.data)
+    this.assertExpectedPayment(checkout, input.data)
     const status = mapCheckoutToSessionStatus(checkout)
 
     if (status !== PaymentSessionStatus.CAPTURED) {
@@ -141,10 +143,7 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
     }
 
     return {
-      data: mergeCheckoutIntoPaymentData(
-        input.data,
-        checkout,
-      ) as unknown as Record<string, unknown>,
+      data: mergeCheckoutIntoPaymentData(input.data, checkout),
     }
   }
 
@@ -154,15 +153,15 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
   }: RefundPaymentInput): Promise<RefundPaymentOutput> {
     const paymentData = data as SumUpPaymentData | undefined
     let transactionId = paymentData?.transaction_id
-    let nextData = data
+    let currency = paymentData?.currency
+    let nextData = { ...data }
+    delete nextData.raw_checkout
 
-    if (!transactionId) {
+    if (!transactionId || !currency) {
       const checkout = await this.retrieveProviderCheckout(data)
-      transactionId = getTransactionId(checkout)
-      nextData = mergeCheckoutIntoPaymentData(
-        data,
-        checkout,
-      ) as unknown as Record<string, unknown>
+      transactionId = getTransactionId(checkout) ?? transactionId
+      currency = checkout.currency
+      nextData = mergeCheckoutIntoPaymentData(data, checkout)
     }
 
     if (!transactionId) {
@@ -172,13 +171,20 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
       )
     }
 
+    if (!currency) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "Cannot refund SumUp payment without its currency.",
+      )
+    }
+
     await this.client_.refundTransaction(
       transactionId,
-      toMajorUnitNumber(amount),
+      toRefundMinorUnits(amount, currency),
     )
 
     return {
-      data: nextData,
+      data: { ...nextData, transaction_id: transactionId },
     }
   }
 
@@ -188,28 +194,27 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
     const checkoutId = this.getCheckoutId(data)
 
     if (!checkoutId) {
-      return { data }
+      const safeData = { ...data }
+      delete safeData.raw_checkout
+      return { data: safeData }
     }
 
     const checkout = await this.retrieveProviderCheckout(data)
     const status = mapCheckoutToSessionStatus(checkout)
 
-    if (status === PaymentSessionStatus.CAPTURED) {
+    if (
+      status === PaymentSessionStatus.CAPTURED ||
+      status === PaymentSessionStatus.CANCELED
+    ) {
       return {
-        data: mergeCheckoutIntoPaymentData(data, checkout) as unknown as Record<
-          string,
-          unknown
-        >,
+        data: mergeCheckoutIntoPaymentData(data, checkout),
       }
     }
 
     try {
       const deactivated = await this.client_.deactivateCheckout(checkoutId)
       return {
-        data: mergeCheckoutIntoPaymentData(
-          data,
-          deactivated,
-        ) as unknown as Record<string, unknown>,
+        data: mergeCheckoutIntoPaymentData(data, deactivated),
       }
     } catch (error) {
       throw this.buildProviderError("Failed to cancel SumUp checkout.", error)
@@ -226,10 +231,7 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
     const checkout = await this.retrieveProviderCheckout(data)
 
     return {
-      data: mergeCheckoutIntoPaymentData(data, checkout) as unknown as Record<
-        string,
-        unknown
-      >,
+      data: mergeCheckoutIntoPaymentData(data, checkout),
     }
   }
 
@@ -237,9 +239,8 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
     const checkout = await this.retrieveProviderCheckout(input.data)
     const status = mapCheckoutToSessionStatus(checkout)
     const currentMode = resolveCheckoutMode(this.options_, input.data)
-    const paymentData = input.data as SumUpPaymentData | undefined
     const existingMode =
-      checkout.hosted_checkout_url || paymentData?.hosted_checkout_url
+      checkout.hosted_checkout_url || input.data?.hosted_checkout_url
         ? "hosted"
         : "widget"
     const requestedUpdatePayload = createCheckoutUpdatePayload({
@@ -265,23 +266,12 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
     }
 
     if (
-      requestedUpdatePayload.checkout_reference !== undefined &&
-      checkout.checkout_reference !== requestedUpdatePayload.checkout_reference
-    ) {
-      updatePayload.checkout_reference =
-        requestedUpdatePayload.checkout_reference
-    }
-
-    if (
       Object.keys(updatePayload).length === 0 &&
       existingMode === currentMode
     ) {
       return {
         status,
-        data: mergeCheckoutIntoPaymentData(
-          input.data,
-          checkout,
-        ) as unknown as Record<string, unknown>,
+        data: mergeCheckoutIntoPaymentData(input.data, checkout),
       }
     }
 
@@ -296,13 +286,6 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
       status === PaymentSessionStatus.PENDING &&
       existingMode === currentMode
     ) {
-      if (!checkout.id) {
-        throw new MedusaError(
-          MedusaError.Types.UNEXPECTED_STATE,
-          "Cannot update a SumUp checkout without an existing checkout id.",
-        )
-      }
-
       const updated = await this.client_.updateCheckout(
         checkout.id,
         updatePayload,
@@ -310,39 +293,45 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
 
       return {
         status: PaymentSessionStatus.PENDING,
-        data: mergeCheckoutIntoPaymentData(
-          input.data,
-          updated,
-        ) as unknown as Record<string, unknown>,
+        data: mergeCheckoutIntoPaymentData(input.data, updated),
       }
     }
 
-    if (!checkout.id) {
-      throw new MedusaError(
-        MedusaError.Types.UNEXPECTED_STATE,
-        "Cannot replace a SumUp checkout without an existing checkout id.",
-      )
-    }
-
-    await this.client_.deactivateCheckout(checkout.id)
-
-    const mode = resolveCheckoutMode(this.options_, input.data)
     const replacement = await this.client_.createCheckout(
       createCheckoutPayload({
         amount: input.amount,
         currencyCode: input.currency_code,
-        data: input.data,
+        data: {
+          ...input.data,
+          checkout_mode: currentMode,
+          // The original reference retains the session link for older stored data.
+          session_id: getMedusaSessionId(checkout.checkout_reference),
+        },
         options: this.options_,
       }),
       input.context?.idempotency_key,
     )
 
+    const replacementData = toStoredPaymentData({
+      checkout: replacement,
+      mode: currentMode,
+    })
+
+    try {
+      if (status !== PaymentSessionStatus.CANCELED) {
+        await this.client_.deactivateCheckout(checkout.id)
+      }
+    } catch (error) {
+      await this.client_.deactivateCheckout(replacementData.checkout_id)
+      throw this.buildProviderError(
+        "Failed to deactivate the original SumUp checkout; replacement was canceled.",
+        error,
+      )
+    }
+
     return {
       status: PaymentSessionStatus.PENDING,
-      data: toStoredPaymentData({
-        checkout: replacement,
-        mode,
-      }) as unknown as Record<string, unknown>,
+      data: replacementData,
     }
   }
 
@@ -351,11 +340,26 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
   ): Promise<WebhookActionResult> {
     const data = payload.data as SumUpWebhookBody
 
-    if (data?.event_type !== "CHECKOUT_STATUS_CHANGED" || !data.id) {
+    if (
+      data?.event_type !== "CHECKOUT_STATUS_CHANGED" ||
+      typeof data.id !== "string" ||
+      !data.id
+    ) {
       return { action: PaymentActions.NOT_SUPPORTED }
     }
 
     const checkout = await this.client_.retrieveCheckout(data.id)
+    const sessionId = getMedusaSessionId(checkout.checkout_reference)
+    if (
+      checkout.id !== data.id ||
+      checkout.merchant_code !== this.options_.merchantCode ||
+      !sessionId ||
+      typeof checkout.amount !== "number" ||
+      !Number.isFinite(checkout.amount) ||
+      checkout.amount <= 0
+    ) {
+      return { action: PaymentActions.NOT_SUPPORTED }
+    }
     const action = mapCheckoutToWebhookAction(checkout)
 
     if (action === PaymentActions.NOT_SUPPORTED) {
@@ -365,8 +369,8 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
     return {
       action,
       data: {
-        session_id: checkout.checkout_reference ?? "",
-        amount: checkout.amount ?? 0,
+        session_id: sessionId,
+        amount: checkout.amount,
       },
     }
   }
@@ -382,9 +386,43 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
     }
 
     try {
-      return await this.client_.retrieveCheckout(checkoutId)
+      const checkout = await this.client_.retrieveCheckout(checkoutId)
+      this.assertCheckoutIdentity(checkout, checkoutId)
+      return checkout
     } catch (error) {
       throw this.buildProviderError("Failed to retrieve SumUp checkout.", error)
+    }
+  }
+
+  private assertCheckoutIdentity(
+    checkout: CheckoutSuccess,
+    checkoutId: string,
+  ): asserts checkout is CheckoutSuccess & { id: string } {
+    if (
+      checkout.id !== checkoutId ||
+      checkout.merchant_code !== this.options_.merchantCode
+    ) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "SumUp checkout does not match the requested checkout and configured merchant.",
+      )
+    }
+  }
+
+  private assertExpectedPayment(
+    checkout: CheckoutSuccess,
+    data?: Record<string, unknown>,
+  ): void {
+    const expectedAmount = data?.amount
+    const expectedCurrency = data?.currency
+    if (
+      (expectedAmount !== undefined && checkout.amount !== expectedAmount) ||
+      (expectedCurrency !== undefined && checkout.currency !== expectedCurrency)
+    ) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "SumUp checkout does not match the expected amount and currency stored for this payment.",
+      )
     }
   }
 

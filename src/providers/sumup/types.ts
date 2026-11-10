@@ -30,10 +30,11 @@ export type SumUpClient = {
   ): Promise<Checkout>
   retrieveCheckout(checkoutId: string): Promise<CheckoutSuccess>
   deactivateCheckout(checkoutId: string): Promise<Checkout>
+  /** Amount is an integer in SumUp minor units; omit for a full refund. */
   refundTransaction(transactionId: string, amount?: number): Promise<void>
 }
 
-export type SumUpPaymentData = {
+export type SumUpPaymentData = Record<string, unknown> & {
   id: string
   checkout_id: string
   checkout_reference: string
@@ -44,7 +45,6 @@ export type SumUpPaymentData = {
   merchant_code: string
   currency?: string
   amount?: number
-  raw_checkout?: Checkout | CheckoutSuccess
 }
 
 export type SumUpWebhookBody = {

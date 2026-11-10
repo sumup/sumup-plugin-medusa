@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto"
 import type { BigNumberInput } from "@medusajs/framework/types"
 import { PaymentActions, PaymentSessionStatus } from "@medusajs/framework/utils"
 import type {
@@ -34,43 +35,39 @@ const SUPPORTED_CURRENCIES = new Set([
 ])
 
 export function toMajorUnitNumber(amount: BigNumberInput): number {
-  if (typeof amount === "number") {
-    return amount
-  }
-
-  if (typeof amount === "string") {
-    return Number(amount)
-  }
-
-  const value = amount as {
-    numeric?: number
-    value?: string | number
-    raw?: { value?: string | number }
-    bigNumber?: { toNumber?: () => number }
-    toNumber?: () => number
-  }
-
-  if (typeof value.numeric === "number") {
-    return value.numeric
-  }
-
-  if (value.value !== undefined) {
-    return Number(value.value)
-  }
-
-  if (value.raw?.value !== undefined) {
-    return Number(value.raw.value)
-  }
-
-  if (typeof value.bigNumber?.toNumber === "function") {
-    return value.bigNumber.toNumber()
-  }
-
-  if (typeof value.toNumber === "function") {
-    return value.toNumber()
+  if (typeof amount === "object" && "value" in amount) {
+    return Number(amount.value)
   }
 
   return Number(amount)
+}
+
+// SumUp uses zero decimals for these currencies, including COP and HUF.
+const ZERO_DECIMAL_CURRENCIES = new Set(["CLP", "COP", "HUF"])
+
+export function toRefundMinorUnits(
+  amount: BigNumberInput,
+  currencyCode: string,
+): number {
+  const currency = normalizeCurrency(currencyCode)
+  const majorUnits = toMajorUnitNumber(amount)
+  const scaled = majorUnits * (ZERO_DECIMAL_CURRENCIES.has(currency) ? 1 : 100)
+  const minorUnits = Math.round(scaled)
+  // Allow floating-point multiplication noise, but never round a fractional cent.
+  const tolerance = Math.min(1e-7, Number.EPSILON * Math.abs(scaled) * 4)
+
+  if (
+    !Number.isFinite(majorUnits) ||
+    !Number.isSafeInteger(minorUnits) ||
+    minorUnits <= 0 ||
+    Math.abs(scaled - minorUnits) > tolerance
+  ) {
+    throw new Error(
+      `Refund amount must be positive and representable in ${currency} minor units.`,
+    )
+  }
+
+  return minorUnits
 }
 
 export function normalizeCurrency(currencyCode: string): Currency {
@@ -87,7 +84,13 @@ export function resolveCheckoutMode(
   options: SumUpProviderOptions,
   data?: Record<string, unknown>,
 ): SumUpCheckoutMode {
-  const mode = data?.checkout_mode ?? data?.checkoutMode ?? options.checkoutMode
+  const client = data?.client as Record<string, unknown> | undefined
+  const mode =
+    client?.checkout_mode ??
+    client?.checkoutMode ??
+    data?.checkout_mode ??
+    data?.checkoutMode ??
+    options.checkoutMode
 
   if (mode === "hosted" || mode === "widget") {
     return mode
@@ -96,25 +99,29 @@ export function resolveCheckoutMode(
   return "hosted"
 }
 
+export function getMedusaSessionId(reference?: string): string | undefined {
+  if (!reference) return undefined
+  const match = /^(payses_[A-Za-z0-9_]{1,40})(?::[a-f0-9]{16})?$/.exec(
+    reference,
+  )
+  return match?.[1]
+}
+
 export function createCheckoutReference(
   data?: Record<string, unknown>,
-  idempotencyKey?: string,
 ): string {
-  const reference =
-    data?.checkout_reference ?? data?.checkoutReference ?? data?.session_id
+  const sessionId =
+    typeof data?.session_id === "string"
+      ? getMedusaSessionId(data.session_id)
+      : undefined
 
-  if (typeof reference === "string" && reference.length > 0) {
-    return reference.slice(0, 90)
+  if (!sessionId) {
+    throw new Error(
+      "A valid Medusa payment session_id is required to create a SumUp checkout.",
+    )
   }
 
-  if (idempotencyKey) {
-    return idempotencyKey.slice(0, 90)
-  }
-
-  return `sumup_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`.slice(
-    0,
-    90,
-  )
+  return `${sessionId}:${randomUUID().replaceAll("-", "").slice(0, 16)}`
 }
 
 export function createCheckoutPayload({
@@ -136,10 +143,7 @@ export function createCheckoutPayload({
     "Medusa order payment"
 
   return {
-    checkout_reference: createCheckoutReference(
-      data,
-      data?.idempotency_key as string | undefined,
-    ),
+    checkout_reference: createCheckoutReference(data),
     amount: toMajorUnitNumber(amount),
     currency: normalizeCurrency(currencyCode),
     merchant_code: options.merchantCode,
@@ -179,12 +183,6 @@ export function createCheckoutUpdatePayload({
 
   if (typeof description === "string") {
     payload.description = description
-  }
-
-  const checkoutReference = data?.checkout_reference ?? data?.checkoutReference
-
-  if (typeof checkoutReference === "string" && checkoutReference.length > 0) {
-    payload.checkout_reference = checkoutReference.slice(0, 90)
   }
 
   return payload
@@ -239,7 +237,6 @@ export function toStoredPaymentData({
     merchant_code: checkout.merchant_code ?? "",
     currency: checkout.currency,
     amount: checkout.amount,
-    raw_checkout: checkout,
   }
 }
 
@@ -252,8 +249,11 @@ export function mergeCheckoutIntoPaymentData(
       ? current.checkout_mode
       : "hosted"
 
+  const safeCurrent = { ...current }
+  delete safeCurrent.raw_checkout
+
   return {
-    ...(current as SumUpPaymentData | undefined),
+    ...safeCurrent,
     ...toStoredPaymentData({ checkout, mode }),
   }
 }

@@ -52,10 +52,14 @@ export class SumUpApiClient implements SumUpClient {
     transactionId: string,
     amount?: number,
   ): Promise<void> {
+    // The merchant refund endpoint accepts integer minor units.
     await this.client_.transactions.refund(
       this.merchantCode_,
       transactionId,
       amount === undefined ? undefined : { amount },
+      // A failed response can follow a successful refund. This endpoint does
+      // not deduplicate retries, so leave reconciliation to the caller.
+      { maxRetries: 0 },
     )
   }
 }

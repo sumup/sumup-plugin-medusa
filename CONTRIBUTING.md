@@ -11,7 +11,7 @@ This document is for maintainers and contributors working on the plugin itself.
 Install dependencies:
 
 ```bash
-corepack enable
+npm install --global yarn@1.22.22
 yarn install
 ```
 
@@ -52,8 +52,8 @@ What it does:
 
 Relevant references:
 
-- Docker walkthrough: [examples/docker/README.md](/Users/matousdzivjak/code/github.com/sumup/sumup-plugin-medusa/examples/docker/README.md)
-- Storefront snippets: [examples/nextjs/README.md](/Users/matousdzivjak/code/github.com/sumup/sumup-plugin-medusa/examples/nextjs/README.md)
+- Docker walkthrough: [examples/docker/README.md](./examples/docker/README.md)
+- Storefront snippets: [examples/nextjs/README.md](./examples/nextjs/README.md)
 
 ## Publishing Checks
 
@@ -72,7 +72,7 @@ Before release, verify the plugin still matches current Medusa expectations:
 
 - The provider is registered under `modules[].options.providers`.
 - The consumer path remains `@sumup/medusa-plugin/providers/sumup`.
-- The webhook route remains `/hooks/payment/[identifier]_[provider]`.
+- The webhook route remains `/hooks/payment/[identifier]_[id]`.
 - The payment provider can still be enabled in a region after application start.
 - The documented compatibility range still matches the Medusa packages used in development.
 
@@ -100,3 +100,13 @@ After publishing a new version:
 1. Run `npm view @sumup/medusa-plugin@latest version keywords repository --registry=https://registry.npmjs.org` and confirm the version, all three listing keywords, and the repository URL. Changes on GitHub do not update an already published npm version.
 2. Check the [Medusa integrations directory](https://medusajs.com/integrations). Confirm the entry links to the SumUp-owned `@sumup/medusa-plugin` package and this repository; another SumUp payment package may have a similar name.
 3. If the package remains absent despite correct public npm metadata, contact Medusa through its [community](https://discord.com/invite/medusajs). Include the package name, published version, repository URL, and required keywords so they can investigate the directory's curation or indexing. The guide does not document a refresh schedule or guarantee a listing immediately after publication.
+
+## Compatibility Maintenance
+
+Check the published npm versions as well as Medusa's [payment provider reference](https://docs.medusajs.com/resources/references/payment/provider), [payment session guide](https://docs.medusajs.com/resources/commerce-modules/payment/payment-session), and [webhook guide](https://docs.medusajs.com/resources/commerce-modules/payment/webhook-events). Keep all Medusa development and example packages on the same release and update the framework peer dependency and README compatibility floor together.
+
+Medusa 2.22.6 supports TypeScript 7 builds. Its CLI still uses the `@typescript/typescript6` compatibility package for `ts-node`; retain that development dependency in both the plugin and example. Verify that a clean build actually emits the provider entry point, then load the built package into the example and build both its backend and admin. Inspect the npm tarball and resolve its public provider path from an installed package.
+
+Provider checks should cover the session ID that Medusa injects into `data.session_id`, storefront updates under `data.client`, unique SumUp checkout references across replacement attempts, cancellation retries, and webhook checkout verification. A mock provider client does not validate SumUp's reference uniqueness or HTTP payload contract; keep regression checks for those boundaries too.
+
+Local unit tests and builds do not exercise a real payment, webhook delivery, database migrations, or refunds. Run the sandbox checklist before releasing payment behavior changes. If a refund request times out, reconcile the transaction in SumUp before retrying: a transport failure does not prove the refund failed.
