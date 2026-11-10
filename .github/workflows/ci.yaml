@@ -44,17 +44,23 @@ jobs:
           yarn build
           test -f .medusa/server/src/providers/sumup/index.js
 
-      - name: Check package contents
-        run: npm pack --dry-run --ignore-scripts
+      - name: Pack plugin and check package contents
+        run: |
+          npm pack --ignore-scripts --json --pack-destination "$RUNNER_TEMP" > "$RUNNER_TEMP/sumup-package.json"
+          node -e 'const assert = require("node:assert/strict"); const [artifact] = require(process.env.RUNNER_TEMP + "/sumup-package.json"); assert(!artifact.files.some(({ path }) => path.includes("__tests__")), "Published package must exclude test files")'
 
       - name: Install example dependencies
         run: yarn --cwd examples/docker/medusa install --frozen-lockfile
 
-      - name: Load built plugin into example
+      - name: Install packed plugin into example
         run: |
+          plugin_tarball=$(node -p 'require(process.env.RUNNER_TEMP + "/sumup-package.json")[0].filename')
           mkdir -p examples/docker/medusa/node_modules/@sumup/medusa-plugin
-          cp package.json examples/docker/medusa/node_modules/@sumup/medusa-plugin/
-          cp -R .medusa examples/docker/medusa/node_modules/@sumup/medusa-plugin/
+          tar -xzf "$RUNNER_TEMP/$plugin_tarball" --strip-components=1 -C examples/docker/medusa/node_modules/@sumup/medusa-plugin
+
+      - name: Verify installed package exports
+        working-directory: examples/docker/medusa
+        run: node -e 'require("@sumup/medusa-plugin"); require("@sumup/medusa-plugin/providers/sumup")'
 
       - name: Build example backend and admin
         run: yarn --cwd examples/docker/medusa build
