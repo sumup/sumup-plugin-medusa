@@ -56,6 +56,9 @@ export class SumUpApiClient implements SumUpClient {
       this.merchantCode_,
       transactionId,
       amount === undefined ? undefined : { amount },
+      // A failed response can follow a successful refund. This endpoint does
+      // not deduplicate retries, so leave reconciliation to the caller.
+      { maxRetries: 0 },
     )
   }
 }
