@@ -10,6 +10,7 @@ import {
   mapCheckoutToWebhookAction,
   mergeCheckoutIntoPaymentData,
   toMajorUnitNumber,
+  toRefundMinorUnits,
   toStoredPaymentData,
 } from "../utils"
 
@@ -122,6 +123,40 @@ describe("SumUp provider utilities", () => {
   it("normalizes Medusa BigNumber-like amounts", () => {
     expect(toMajorUnitNumber({ numeric: 42 } as never)).toBe(42)
     expect(toMajorUnitNumber({ raw: { value: "13.37" } } as never)).toBe(13.37)
+  })
+
+  it.each([
+    [1, "EUR", 100],
+    [2, "EUR", 200],
+    [5, "EUR", 500],
+    [41, "EUR", 4100],
+    [100, "EUR", 10000],
+    [12.34, "EUR", 1234],
+    [0.29, "eur", 29],
+    ["19.99", "GBP", 1999],
+    [{ numeric: 5.25 }, "USD", 525],
+    [{ raw: { value: "3.75" } }, "CHF", 375],
+    [500, "CLP", 500],
+    [500, "COP", 500],
+    [500, "HUF", 500],
+  ])(
+    "converts %s %s to %s refund minor units",
+    (amount, currency, expected) => {
+      expect(toRefundMinorUnits(amount as never, currency)).toBe(expected)
+    },
+  )
+
+  it.each([0, -1, NaN, Infinity, 0.001, Number.MAX_SAFE_INTEGER])(
+    "rejects invalid EUR refund amount %s",
+    (amount) => expect(() => toRefundMinorUnits(amount, "EUR")).toThrow(),
+  )
+
+  it("rejects fractional amounts for currencies without minor units", () => {
+    expect(() => toRefundMinorUnits(1.5, "CLP")).toThrow()
+  })
+
+  it("rejects unsupported refund currencies", () => {
+    expect(() => toRefundMinorUnits(5, "XYZ")).toThrow()
   })
 
   it("maps SumUp checkout statuses to Medusa payment session statuses", () => {

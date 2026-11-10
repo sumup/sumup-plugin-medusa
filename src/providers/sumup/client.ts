@@ -52,6 +52,7 @@ export class SumUpApiClient implements SumUpClient {
     transactionId: string,
     amount?: number,
   ): Promise<void> {
+    // The merchant refund endpoint accepts integer minor units.
     await this.client_.transactions.refund(
       this.merchantCode_,
       transactionId,
