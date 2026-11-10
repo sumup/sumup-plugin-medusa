@@ -11,7 +11,7 @@ This document is for maintainers and contributors working on the plugin itself.
 Install dependencies:
 
 ```bash
-corepack enable
+npm install --global yarn@1.22.22
 yarn install
 ```
 
