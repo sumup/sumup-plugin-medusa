@@ -254,7 +254,7 @@ describe("SumUpPaymentProviderService", () => {
     const raw_checkout = { payment_instrument: { token: "fake_legacy_token" } }
     const refunded = await provider.refundPayment({
       amount: 5,
-      data: { transaction_id: "txn_1", raw_checkout },
+      data: { transaction_id: "txn_1", currency: "EUR", raw_checkout },
     })
     const canceled = await provider.cancelPayment({
       data: { raw_checkout, other: "preserved" },
@@ -328,6 +328,7 @@ describe("SumUpPaymentProviderService", () => {
     client.checkouts.set("checkout_1", {
       id: "checkout_1",
       checkout_reference: "payses_currency",
+      merchant_code: "MC123",
       currency: "CLP",
       status: "PAID",
     })
@@ -349,6 +350,7 @@ describe("SumUpPaymentProviderService", () => {
     client.checkouts.set("checkout_1", {
       id: "checkout_1",
       checkout_reference: "payses_currency_missing",
+      merchant_code: "MC123",
       status: "PAID",
     })
     await expect(
