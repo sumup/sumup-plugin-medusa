@@ -176,6 +176,93 @@ describe("SumUpPaymentProviderService", () => {
     expect(result.data?.transaction_code).toBe("T123")
   })
 
+  it.each(["authorizePayment", "capturePayment"] as const)(
+    "%s rejects a paid checkout with an unexpected amount or currency",
+    async (method) => {
+      const { provider, client } = createProvider()
+      const initiated = await provider.initiatePayment({
+        amount: 20,
+        currency_code: "eur",
+        data: { session_id: "payses_integrity" },
+      })
+      const original = client.checkouts.get("checkout_1")
+      for (const changed of [
+        { amount: 1 },
+        { currency: "USD" as const },
+        { amount: undefined },
+        { currency: undefined },
+      ]) {
+        client.checkouts.set("checkout_1", {
+          ...original,
+          ...changed,
+          status: "PAID",
+        })
+        await expect(
+          provider[method]({ data: initiated.data }),
+        ).rejects.toThrow("expected amount and currency")
+      }
+      expect(initiated.data?.amount).toBe(20)
+      expect(initiated.data?.currency).toBe("EUR")
+    },
+  )
+
+  it.each(["authorizePayment", "capturePayment"] as const)(
+    "%s accepts the expected paid checkout and legacy data without expectations",
+    async (method) => {
+      const { provider, client } = createProvider()
+      const initiated = await provider.initiatePayment({
+        amount: 20,
+        currency_code: "eur",
+        data: { session_id: "payses_integrity_ok" },
+      })
+      client.checkouts.set("checkout_1", {
+        ...client.checkouts.get("checkout_1"),
+        status: "PAID",
+      })
+      await expect(
+        provider[method]({ data: initiated.data }),
+      ).resolves.toHaveProperty("data.amount", 20)
+      await expect(
+        provider[method]({ data: { checkout_id: "checkout_1" } }),
+      ).resolves.toHaveProperty("data.amount", 20)
+    },
+  )
+
+  it("allows updatePayment to reconcile changed remote amounts", async () => {
+    const { provider, client } = createProvider()
+    const initiated = await provider.initiatePayment({
+      amount: 20,
+      currency_code: "eur",
+      data: { session_id: "payses_reconcile" },
+    })
+    client.checkouts.set("checkout_1", {
+      ...client.checkouts.get("checkout_1"),
+      amount: 1,
+    })
+    await expect(
+      provider.updatePayment({
+        amount: 20,
+        currency_code: "eur",
+        data: initiated.data,
+      }),
+    ).resolves.toHaveProperty("data.amount", 20)
+    expect(client.updatedPayloads[0].payload).toEqual({ amount: 20 })
+  })
+
+  it("sanitizes legacy raw checkout data in refund and no-id cancellation outputs", async () => {
+    const { provider } = createProvider()
+    const raw_checkout = { payment_instrument: { token: "fake_legacy_token" } }
+    const refunded = await provider.refundPayment({
+      amount: 5,
+      data: { transaction_id: "txn_1", raw_checkout },
+    })
+    const canceled = await provider.cancelPayment({
+      data: { raw_checkout, other: "preserved" },
+    })
+    expect(refunded.data).not.toHaveProperty("raw_checkout")
+    expect(canceled.data).toEqual({ other: "preserved" })
+  })
+
   it("refunds the successful transaction", async () => {
     const { provider, client } = createProvider()
 

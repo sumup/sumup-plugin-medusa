@@ -111,7 +111,16 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
   async authorizePayment(
     input: AuthorizePaymentInput,
   ): Promise<AuthorizePaymentOutput> {
-    return await this.getPaymentStatus(input)
+    const checkout = await this.retrieveProviderCheckout(input.data)
+    this.assertExpectedPayment(checkout, input.data)
+
+    return {
+      status: mapCheckoutToSessionStatus(checkout),
+      data: mergeCheckoutIntoPaymentData(
+        input.data,
+        checkout,
+      ) as unknown as Record<string, unknown>,
+    }
   }
 
   async getPaymentStatus(
@@ -132,6 +141,7 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
     input: CapturePaymentInput,
   ): Promise<CapturePaymentOutput> {
     const checkout = await this.retrieveProviderCheckout(input.data)
+    this.assertExpectedPayment(checkout, input.data)
     const status = mapCheckoutToSessionStatus(checkout)
 
     if (status !== PaymentSessionStatus.CAPTURED) {
@@ -155,7 +165,8 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
   }: RefundPaymentInput): Promise<RefundPaymentOutput> {
     const paymentData = data as SumUpPaymentData | undefined
     let transactionId = paymentData?.transaction_id
-    let nextData = data
+    let nextData = { ...data }
+    delete nextData.raw_checkout
 
     if (!transactionId) {
       const checkout = await this.retrieveProviderCheckout(data)
@@ -189,7 +200,9 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
     const checkoutId = this.getCheckoutId(data)
 
     if (!checkoutId) {
-      return { data }
+      const safeData = { ...data }
+      delete safeData.raw_checkout
+      return { data: safeData }
     }
 
     const checkout = await this.retrieveProviderCheckout(data)
@@ -449,6 +462,32 @@ class SumUpPaymentProviderService extends AbstractPaymentProvider<SumUpProviderO
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
         "SumUp checkout does not match the requested checkout and configured merchant.",
+      )
+    }
+  }
+
+  private assertExpectedPayment(
+    checkout: CheckoutSuccess,
+    data?: Record<string, unknown>,
+  ): void {
+    const expectedAmount = data?.amount
+    const expectedCurrency = data?.currency
+    // Older provider records can lack these values. Check every expectation
+    // that is available before a fresh response can overwrite the stored data.
+    if (
+      (expectedAmount !== undefined &&
+        (typeof expectedAmount !== "number" ||
+          !Number.isFinite(expectedAmount) ||
+          expectedAmount <= 0 ||
+          checkout.amount !== expectedAmount)) ||
+      (expectedCurrency !== undefined &&
+        (typeof expectedCurrency !== "string" ||
+          expectedCurrency.length === 0 ||
+          checkout.currency?.toUpperCase() !== expectedCurrency.toUpperCase()))
+    ) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "SumUp checkout does not match the expected amount and currency stored for this payment.",
       )
     }
   }
